@@ -1,0 +1,67 @@
+{
+  "name": "haimuai",
+  "version": "3.0.0",
+  "description": "HaimuAi v3 - Stealth AI Desktop Assistant with voice, screenshots, and AI-powered assistance",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "stealth": "electron . --stealth",
+    "launch": "powershell -ExecutionPolicy Bypass -File ./launch.ps1",
+    "launch:stealth": "powershell -ExecutionPolicy Bypass -File ./launch.ps1 -Stealth",
+    "kill": "powershell -ExecutionPolicy Bypass -File ./launch.ps1 -Kill",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
+    "build:dir": "electron-builder --win --dir"
+  },
+  "keywords": ["ai", "desktop", "assistant", "screenshot", "electron"],
+  "author": "HaimuAi",
+  "license": "MIT",
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "marked": "^12.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.haimuai.desktop",
+    "productName": "HaimuAi",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "utils/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "renderer/assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "HaimuAi"
+    },
+    "portable": {
+      "artifactName": "HaimuAi-Portable.exe"
+    }
+  }
+}

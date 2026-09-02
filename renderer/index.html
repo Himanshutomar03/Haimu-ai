@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <!-- Title Bar -->
+  <div class="title-bar" id="titleBar">
+    <div class="title-bar-drag">
+      <div class="title-bar-logo">
+        <img src="assets/icon.png" alt="HaimuAi" class="title-icon">
+        <span class="title-text">HaimuAi</span>
+        <span class="title-version">v3.0</span>
+      </div>
+    </div>
+    <div class="title-bar-actions">
+      <div class="status-indicators">
+        <div class="indicator safe-mode-indicator" id="safeModeIndicator">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+        <div class="indicator voice-indicator" id="voiceIndicator">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+          </svg>
+        </div>
+        <div class="indicator opacity-indicator" id="opacityIndicator">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" opacity="0.3" />
+          </svg>
+        </div>
+        <div class="indicator ghost-indicator" id="ghostIndicator">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+          </svg>
+        </div>
+        <div class="indicator always-active-indicator" id="alwaysActiveIndicator" title="Always Active — no focus stealing">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+      </div>
+      <!-- Quick Opacity Slider (inline, toggled) -->
+      <div class="quick-opacity-wrapper" id="quickOpacityWrapper">
+        <input type="range" id="quickOpacitySlider" min="20" max="100" value="95" class="quick-opacity-slider">
+        <span class="quick-opacity-value" id="quickOpacityValue">95%</span>
+      </div>
+      <button class="title-btn" id="btnSettings">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <button class="title-btn" id="btnMinimize">
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <rect y="5" width="12" height="2" fill="currentColor" />
+        </svg>
+      </button>
+      <button class="title-btn" id="btnMaximize">
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <rect x="1" y="1" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+      </button>
+      <button class="title-btn title-btn-close" id="btnClose">
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <line x1="1" y1="1" x2="11" y2="11" stroke="currentColor" stroke-width="1.5" />
+          <line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <!-- Quick Actions Bar -->
+    <div class="quick-actions" id="quickActions">
+      <button class="action-btn" data-command="explain">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <span>Explain</span>
+      </button>
+      <button class="action-btn" data-command="debug">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path
+            d="M8 2l1.5 1.5M16 2l-1.5 1.5M12 9V6M4.93 4.93l1.41 1.41M19.07 4.93l-1.41 1.41M2 12h3M19 12h3M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41" />
+          <circle cx="12" cy="12" r="4" />
+        </svg>
+        <span>Debug</span>
+      </button>
+      <button class="action-btn" data-command="generate">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+        <span>Generate</span>
+      </button>
+      <button class="action-btn" data-command="screenshot">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </svg>
+        <span>Capture</span>
+      </button>
+      <button class="action-btn answer-btn" id="btnAnswerQuestion" data-command="answer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        <span>Answer</span>
+      </button>
+      <button class="action-btn listen-btn" id="btnListenToggle" data-command="listen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+        </svg>
+        <span>Listen</span>
+      </button>
+      <button class="action-btn" data-command="practice">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </svg>
+        <span>Practice</span>
+      </button>
+      <div class="action-divider"></div>
+      <button class="action-btn resume-btn" id="btnResumeToggle" data-command="resume">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+        <span>Resume</span>
+      </button>
+      <button class="action-btn interview-btn" id="btnInterviewToggle" data-command="interview">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>Interview</span>
+      </button>
+      <button class="action-btn history-btn" id="btnHistoryToggle" data-command="history">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span>History</span>
+      </button>
+      <div class="action-divider"></div>
+      <button class="action-btn new-chat-action-btn" id="btnNewChatAction" data-command="newchat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>New Chat</span>
+      </button>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat-area" id="chatArea">
+      <div class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-icon">
+          <div class="welcome-glow"></div>
+          <img src="assets/icon.png" alt="HaimuAi" class="welcome-logo">
+        </div>
+        <h2 class="welcome-title">Welcome to HaimuAi</h2>
+        <p class="welcome-subtitle">Your AI assistant that works right on your screen</p>
+        <div class="shortcut-hints">
+          <div class="hint"><kbd>Ctrl+Shift+Space</kbd> Toggle window</div>
+          <div class="hint"><kbd>Alt+V</kbd> Voice input</div>
+          <div class="hint"><kbd>Alt+L</kbd> Listen to system audio & answer</div>
+          <div class="hint"><kbd>Capture</kbd> button — Screenshot + AI</div>
+          <div class="hint"><kbd>Answer</kbd> button — Auto-answer screen</div>
+          <div class="hint"><kbd>Ctrl+Backspace</kbd> Clear chat</div>
+          <div class="hint"><kbd>Ctrl+Shift+A</kbd> Always Active (no focus steal)</div>
+        </div>
+      </div>
+      <div class="messages" id="messages"></div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area" id="inputArea">
+      <div class="input-container">
+        <div class="input-top">
+          <div class="language-select">
+            <select id="languageSelect">
+              <option value="javascript">JavaScript</option>
+              <option value="python">Python</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="csharp">C#</option>
+              <option value="typescript">TypeScript</option>
+              <option value="go">Go</option>
+              <option value="rust">Rust</option>
+              <option value="html">HTML/CSS</option>
+              <option value="sql">SQL</option>
+              <option value="php">PHP</option>
+              <option value="ruby">Ruby</option>
+              <option value="swift">Swift</option>
+              <option value="kotlin">Kotlin</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="input-actions-top">
+            <button class="input-icon-btn" id="btnClipboard">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+              </svg>
+            </button>
+            <button class="input-icon-btn" id="btnVoice">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Attachments Strip (ChatGPT-style image chips) -->
+        <div class="attachments-strip" id="attachmentsStrip" style="display:none"></div>
+
+        <!-- Main input row -->
+        <div class="input-wrapper">
+          <button class="input-attach-btn" id="btnAttachFile">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+          <input type="file" id="attachFileInput" accept="image/*" multiple hidden>
+          <textarea id="userInput" placeholder="Ask anything... (Enter to send)" rows="1" autofocus></textarea>
+          <button class="send-btn" id="btnSend">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="input-footer">
+          <span class="char-count" id="charCount">0</span>
+          <div class="input-actions-bottom">
+            <button class="footer-btn" id="btnClear">Clear</button>
+            <button class="footer-btn auto-type-btn" id="btnAutoType">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 7 4 4 20 4 20 7" />
+                <line x1="9" y1="20" x2="15" y2="20" />
+                <line x1="12" y1="4" x2="12" y2="20" />
+              </svg>
+              Auto-Type
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Panel (slide in) -->
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-header">
+        <h3>Settings</h3>
+        <button class="settings-close" id="btnCloseSettings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="settings-body">
+        <!-- AI Provider Selector -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+            </svg>
+            AI Provider
+          </label>
+          <div class="settings-toggle-group" id="providerToggleGroup">
+            <button class="toggle-btn active" data-provider="gemini" id="providerGeminiBtn">☁️ Gemini (Cloud)</button>
+            <button class="toggle-btn" data-provider="ollama" id="providerOllamaBtn">🖥️ Ollama (Local)</button>
+          </div>
+        </div>
+
+        <!-- Gemini Section -->
+        <div class="settings-group" id="geminiSection">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+            Gemini API Keys
+            <span class="api-key-active-badge" id="apiKeyActiveBadge">Key 1 active</span>
+          </label>
+
+          <!-- Dynamic key list -->
+          <div class="api-keys-list" id="apiKeysList"></div>
+
+          <!-- Add key button -->
+          <button class="api-key-add-btn" id="btnAddApiKey">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add another API key
+          </button>
+
+          <!-- Rotation status -->
+          <div class="api-key-rotation-info" id="apiKeyRotationInfo" style="display:none">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/>
+            </svg>
+            <span id="apiKeyRotationText">Auto-switching when quota exceeded</span>
+          </div>
+
+          <small class="settings-hint">Get keys from <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> · Keys rotate automatically when quota is hit</small>
+        </div>
+
+        <!-- Ollama Section -->
+        <div class="settings-group" id="ollamaSection" style="display:none">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+            </svg>
+            Local Model
+          </label>
+          <input type="text" id="settingOllamaModel" class="settings-input" placeholder="llama3.2" value="llama3.2">
+          <div class="ollama-model-chips">
+            <button class="topic-chip" data-model="llama3.2">llama3.2</button>
+            <button class="topic-chip" data-model="mistral">mistral</button>
+            <button class="topic-chip" data-model="codellama">codellama</button>
+            <button class="topic-chip" data-model="phi3:mini">phi3:mini</button>
+          </div>
+          <div class="ollama-status" id="ollamaStatus">
+            <span class="ollama-status-dot" id="ollamaStatusDot">⚪</span>
+            <span id="ollamaStatusText">Click Test to check Ollama</span>
+            <button class="footer-btn" id="btnTestOllama" style="margin-left:auto">Test</button>
+          </div>
+          <small class="settings-hint">Install: <a href="https://ollama.com/download/windows" target="_blank">ollama.com</a> · Then run: <code>ollama pull llama3.2</code></small>
+        </div>
+
+
+
+
+
+        <!-- Theme -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            Theme
+          </label>
+          <div class="settings-toggle-group">
+            <button class="toggle-btn active" data-theme="dark">Dark</button>
+            <button class="toggle-btn" data-theme="light">Light</button>
+          </div>
+        </div>
+
+        <!-- Opacity -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            Window Opacity
+          </label>
+          <div class="settings-range-wrapper">
+            <input type="range" id="settingOpacity" min="30" max="100" value="95" class="settings-range">
+            <span class="range-value" id="opacityValue">95%</span>
+          </div>
+        </div>
+
+        <!-- Font Size -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 7 4 4 20 4 20 7" />
+              <line x1="9" y1="20" x2="15" y2="20" />
+              <line x1="12" y1="4" x2="12" y2="20" />
+            </svg>
+            Font Size
+          </label>
+          <div class="settings-range-wrapper">
+            <input type="range" id="settingFontSize" min="10" max="22" value="14" class="settings-range">
+            <span class="range-value" id="fontSizeValue">14px</span>
+          </div>
+        </div>
+
+        <!-- Always on Top -->
+        <div class="settings-group settings-row">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            </svg>
+            Always on Top
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="settingAlwaysOnTop" checked>
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <!-- Auto Focus -->
+        <div class="settings-group settings-row">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6" />
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+            </svg>
+            Auto Focus
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="settingAutoFocus" checked>
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <!-- Always Active -->
+        <div class="settings-group settings-row">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            Always Active
+            <small class="settings-hint-inline">No window-switch detection</small>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="settingAlwaysActive">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <!-- Typing Speed -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+            </svg>
+            Auto-Type Speed (ms)
+          </label>
+          <div class="settings-range-wrapper">
+            <input type="range" id="settingTypingSpeed" min="10" max="200" value="50" class="settings-range">
+            <span class="range-value" id="typingSpeedValue">50ms</span>
+          </div>
+        </div>
+
+        <!-- Default Language -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            Default Language
+          </label>
+          <select id="settingDefaultLanguage" class="settings-input">
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+            <option value="csharp">C#</option>
+            <option value="typescript">TypeScript</option>
+            <option value="go">Go</option>
+            <option value="rust">Rust</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-footer">
+        <button class="settings-save-btn" id="btnSaveSettings">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screenshot Preview Modal — Multi-Capture -->
+  <div class="screenshot-modal" id="screenshotModal">
+    <div class="screenshot-content multi-capture">
+
+      <!-- Header -->
+      <div class="ss-modal-header">
+        <div class="ss-modal-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span>Screenshot Capture</span>
+          <span class="ss-count-label" id="ssCountLabel">0 screenshots</span>
+        </div>
+        <button class="ss-modal-close" id="btnCloseScreenshot">✕</button>
+      </div>
+
+      <!-- Gallery strip -->
+      <div class="ss-gallery-wrapper">
+        <div class="ss-gallery" id="screenshotGallery">
+          <!-- Thumbnails populated dynamically -->
+        </div>
+        <div class="ss-gallery-empty" id="ssGalleryEmpty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <p>No screenshots yet — capture or upload below</p>
+        </div>
+      </div>
+
+      <!-- Add more actions -->
+      <div class="ss-add-row">
+        <button class="ss-add-btn" id="btnAddCapture">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          + Capture Screen
+        </button>
+        <button class="ss-add-btn" id="btnUploadScreenshot">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Image
+        </button>
+        <input type="file" id="ssFileInput" accept="image/*" multiple hidden>
+        <button class="ss-add-btn danger" id="btnClearScreenshots" style="margin-left:auto">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          Clear All
+        </button>
+      </div>
+
+      <!-- Prompt Input -->
+      <div class="screenshot-prompt-area">
+        <div class="screenshot-prompt-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span>What should AI do with these captures?</span>
+        </div>
+        <textarea id="screenshotPrompt" class="screenshot-prompt-input"
+          placeholder="e.g. Debug this error, Explain this code, Solve this problem, Compare these screenshots..."
+          rows="2"></textarea>
+      </div>
+
+      <!-- Opacity Control -->
+      <div class="screenshot-opacity-control">
+        <label class="screenshot-opacity-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" opacity="0.3" />
+          </svg>
+          Overlay Opacity
+        </label>
+        <div class="screenshot-opacity-slider">
+          <input type="range" id="screenshotOpacity" min="10" max="100" value="70" class="settings-range">
+          <span class="range-value" id="screenshotOpacityValue">70%</span>
+        </div>
+      </div>
+
+      <!-- Chat Sync Indicator -->
+      <div class="screenshot-chat-sync" id="screenshotChatSync">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 4v6h6M23 20v-6h-6" />
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+        </svg>
+        <span id="screenshotSyncText">🔗 Synced with current chat — AI will answer in context</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="screenshot-actions">
+        <button class="screenshot-btn" id="btnAnalyzeScreenshot">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span id="btnAnalyzeLabel">Analyze with AI</span>
+        </button>
+        <button class="screenshot-btn secondary" id="btnCloseScreenshotBottom">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Resume Upload Panel -->
+  <div class="resume-overlay" id="resumeOverlay">
+    <div class="resume-panel">
+      <div class="resume-panel-header">
+        <h3>📄 Resume / CV</h3>
+        <button class="settings-close" id="btnCloseResume">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="resume-panel-body">
+        <p class="resume-hint">Paste your resume text below. HaimuAi will use it to personalize all responses and answer
+          interview questions based on your actual experience.</p>
+        <div class="resume-status" id="resumeStatus">
+          <span class="resume-status-dot"></span>
+          <span id="resumeStatusText">No resume loaded</span>
+        </div>
+        <textarea id="resumeInput" class="resume-textarea" placeholder="Paste your full resume/CV text here...
+
+Example:
+Name: John Doe
+Skills: Python, JavaScript, React, Node.js
+Experience: 3 years at XYZ Corp as Full Stack Developer
+Projects: E-commerce platform, Chat application
+Education: B.Tech Computer Science, MIT University
+..."></textarea>
+        <div class="resume-file-drop" id="resumeFileDrop">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <span>Upload resume image (PNG, JPG) or .txt file</span>
+          <input type="file" id="resumeFileInput" accept=".txt,.text,.md,.png,.jpg,.jpeg,.webp,image/*" hidden>
+        </div>
+      </div>
+      <div class="resume-panel-footer">
+        <button class="footer-btn" id="btnClearResume">Clear Resume</button>
+        <button class="settings-save-btn" id="btnSaveResume">💾 Save Resume</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interview Start Panel -->
+  <div class="interview-overlay" id="interviewOverlay">
+    <div class="interview-panel">
+      <div class="interview-panel-header">
+        <h3>🎯 Interview Mode</h3>
+        <button class="settings-close" id="btnCloseInterview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="interview-panel-body">
+        <!-- Mode Selector -->
+        <div class="interview-mode-selector">
+          <button class="interview-mode-btn active" id="btnModePractice" data-mode="practice">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Practice
+          </button>
+          <button class="interview-mode-btn" id="btnModeOnline" data-mode="online">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Online Interview
+          </button>
+        </div>
+
+        <!-- Practice Mode Content -->
+        <div class="interview-mode-content" id="practiceContent">
+          <p class="interview-description">Start a mock interview session. HaimuAi will grill you with progressively
+            harder questions, give feedback on each answer, and ask follow-ups.</p>
+        </div>
+
+        <!-- Online Interview Mode Content -->
+        <div class="interview-mode-content" id="onlineContent" style="display:none">
+          <p class="interview-description">🔴 <strong>Live Interview Assist</strong> — Capture your screen showing the
+            question, and HaimuAi will frame a perfect answer for you to speak. Answers are concise, natural, and in
+            first-person telling form.</p>
+          <div class="online-interview-tips">
+            <div class="online-tip">📸 Press <kbd>Ctrl+4</kbd> to capture the question on screen</div>
+            <div class="online-tip">🗣️ AI will give you a ready-to-speak answer</div>
+            <div class="online-tip">📄 Your resume is used to personalize answers</div>
+          </div>
+        </div>
+
+        <div class="interview-resume-note" id="interviewResumeNote">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <span id="interviewResumeStatus">No resume loaded - questions will be generic</span>
+        </div>
+        <div class="settings-group">
+          <label class="settings-label">Interview Topic / Role</label>
+          <input type="text" id="interviewTopic" class="settings-input"
+            placeholder="e.g. React Developer, Data Structures, System Design, Python Backend...">
+        </div>
+        <div class="interview-topics-quick">
+          <button class="topic-chip" data-topic="Frontend React/JavaScript">⚛️ Frontend</button>
+          <button class="topic-chip" data-topic="Backend Node.js/Python">🔧 Backend</button>
+          <button class="topic-chip" data-topic="Data Structures & Algorithms">📊 DSA</button>
+          <button class="topic-chip" data-topic="System Design">🏗️ System Design</button>
+          <button class="topic-chip" data-topic="SQL & Databases">🗄️ Database</button>
+          <button class="topic-chip" data-topic="Behavioral & HR">🤝 Behavioral</button>
+          <button class="topic-chip" data-topic="DevOps & Cloud">☁️ DevOps</button>
+          <button class="topic-chip" data-topic="Machine Learning & AI">🤖 ML/AI</button>
+        </div>
+
+        <!-- PDF / Document Upload for Interview Context -->
+        <div class="interview-pdf-section">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            Upload JD / Question Paper (Optional)
+          </label>
+          <div class="interview-pdf-drop" id="interviewPdfDrop">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span>Drop or click — PDF screenshot, image, or .txt</span>
+            <input type="file" id="interviewPdfInput" accept=".txt,.text,.md,.png,.jpg,.jpeg,.webp,.pdf,image/*" hidden>
+          </div>
+          <div class="interview-pdf-status" id="interviewPdfStatus" style="display:none">
+            <div class="interview-pdf-status-content">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <span id="interviewPdfName">document.pdf</span>
+              <span class="interview-pdf-badge" id="interviewPdfBadge">Extracted</span>
+            </div>
+            <button class="interview-pdf-remove" id="btnRemoveInterviewPdf">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="interview-panel-footer">
+        <button class="settings-save-btn interview-start-btn" id="btnStartInterview">🎬 Start Practice
+          Interview</button>
+        <button class="settings-save-btn interview-start-btn online-start-btn" id="btnStartOnlineInterview"
+          style="display:none">🔴 Start Online Interview Assist</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat History Sidebar -->
+  <div class="history-overlay" id="historyOverlay">
+    <div class="history-panel">
+      <div class="history-panel-header">
+        <h3>📜 Chat History</h3>
+        <button class="settings-close" id="btnCloseHistory">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="history-panel-body">
+        <button class="new-chat-btn" id="btnNewChat">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          New Chat
+        </button>
+        <div class="history-list" id="historyList">
+          <!-- Sessions will be populated dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Audio Listen Banner -->
+  <div class="listen-banner" id="listenBanner">
+    <div class="listen-banner-header">
+      <div class="listen-banner-status">
+        <span class="listen-banner-dot"></span>
+        <span class="listen-banner-label">🎧 Listening to System Audio</span>
+        <span class="listen-banner-timer" id="listenTimer">0:00</span>
+      </div>
+      <button class="listen-stop-btn" id="btnStopListen">Stop & Answer</button>
+    </div>
+    <div class="listen-waveform" id="listenWaveform">
+      <div class="listen-waveform-bars" id="listenWaveformBars"></div>
+    </div>
+    <div class="listen-transcript-area" id="listenTranscriptArea">
+      <div class="listen-transcript-header">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <span>Live Transcript</span>
+      </div>
+      <div class="listen-transcript-content" id="listenTranscriptContent">
+        <span class="listen-transcript-placeholder">Waiting for audio...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interview Active Banner -->
+  <div class="interview-banner" id="interviewBanner">
+    <div class="interview-banner-content">
+      <span class="interview-banner-dot"></span>
+      <span id="interviewBannerText">🎯 Interview Mode Active</span>
+    </div>
+    <button class="interview-stop-btn" id="btnStopInterview">Stop Interview</button>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <script src="modules/ai-chat.js"></script>
+  <script src="modules/screenshot.js"></script>
+  <script src="modules/auto-type.js"></script>
+  <script src="modules/voice.js"></script>
+  <script src="modules/settings.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
