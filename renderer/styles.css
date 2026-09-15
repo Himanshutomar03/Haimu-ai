@@ -3752,3 +3752,151 @@ body, .title-bar, .quick-actions, .chat-area, .input-area,
   0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
   50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1), 0 0 16px rgba(16, 185, 129, 0.15); }
 }
+
+/* ============================================
+   Virtual Keyboard — Floating, transparent, draggable
+   ============================================ */
+.vk {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  background: transparent;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.vk.vk-show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Drag grip */
+.vk-grip {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 14px;
+  background: rgba(124, 58, 237, 0.5);
+  border-radius: 7px 7px 0 0;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px !important;
+  color: rgba(255,255,255,0.7) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.7) !important;
+  text-shadow: none !important;
+  letter-spacing: 1px;
+}
+.vk-grip:active { cursor: grabbing; }
+
+/* Close button */
+.vk-x {
+  position: absolute;
+  top: -14px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: rgba(239, 68, 68, 0.7);
+  border: none;
+  border-radius: 50%;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-shadow: none !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  line-height: 1;
+}
+.vk-x:hover {
+  background: rgba(239, 68, 68, 1);
+  transform: scale(1.15);
+}
+
+/* Rows */
+.vk .vk-r {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+/* Keys — glass effect, no panel background */
+.vk .vk-k {
+  min-width: 26px;
+  height: 28px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 20, 35, 0.75);
+  backdrop-filter: blur(8px);
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-shadow: none !important;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.08s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vk .vk-k:hover {
+  background: rgba(124, 58, 237, 0.4);
+  border-color: rgba(124, 58, 237, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+.vk .vk-k.vk-tap {
+  background: rgba(124, 58, 237, 0.7) !important;
+  transform: scale(0.92);
+}
+
+/* Special keys */
+.vk .vk-sp {
+  min-width: 40px;
+  font-size: 10px !important;
+  color: #c4b5fd !important;
+  -webkit-text-fill-color: #c4b5fd !important;
+  background: rgba(124, 58, 237, 0.2);
+}
+.vk .vk-w { min-width: 40px; }
+.vk .vk-space {
+  flex: 1;
+  min-width: 120px;
+  max-width: 180px;
+  background: rgba(15, 20, 35, 0.6);
+}
+
+/* Active state for Shift/Caps */
+.vk .vk-k.vk-on {
+  background: rgba(16, 185, 129, 0.4) !important;
+  border-color: rgba(16, 185, 129, 0.6) !important;
+  color: #10b981 !important;
+  -webkit-text-fill-color: #10b981 !important;
+}
+
+/* Send button */
+.vk .vk-send {
+  min-width: 40px;
+  background: rgba(124, 58, 237, 0.5) !important;
+  border-color: rgba(124, 58, 237, 0.6) !important;
+  font-size: 13px !important;
+}
+.vk .vk-send:hover {
+  background: rgba(124, 58, 237, 0.75) !important;
+  box-shadow: 0 0 14px rgba(124, 58, 237, 0.4);
+}
+

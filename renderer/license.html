@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaimuAi — Activation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: rgba(10, 10, 18, 0.97);
+      --surface: rgba(22, 22, 36, 0.95);
+      --border: rgba(80, 70, 160, 0.3);
+      --accent: #7c6af7;
+      --accent2: #5b4fd4;
+      --text: #e8e8f4;
+      --text-dim: #6a6a8a;
+      --red: #ef4444;
+      --green: #22c55e;
+      --font: 'Inter', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    body {
+      font-family: var(--font);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      border-radius: 16px;
+    }
+
+    .card {
+      width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 32px 28px;
+      position: relative;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    /* Glow effect */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(ellipse, rgba(124,106,247,0.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .no-drag { -webkit-app-region: no-drag; }
+
+    /* Close button */
+    .close-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 28px;
+      height: 28px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      -webkit-app-region: no-drag;
+    }
+    .close-btn:hover { background: rgba(239,68,68,0.15); color: var(--red); border-color: rgba(239,68,68,0.3); }
+
+    /* Logo area */
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 20px rgba(124,106,247,0.4);
+    }
+
+    .logo-text { line-height: 1; }
+    .logo-name { font-size: 20px; font-weight: 700; color: var(--text); }
+    .logo-sub { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+
+    /* Title */
+    .title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    /* Key input */
+    .key-input {
+      width: 100%;
+      padding: 13px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(124,106,247,0.35);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      outline: none;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      -webkit-app-region: no-drag;
+    }
+    .key-input::placeholder { color: var(--text-dim); font-family: var(--font); font-size: 14px; letter-spacing: 0; text-transform: none; }
+    .key-input:focus {
+      border-color: var(--accent);
+      background: rgba(124,106,247,0.08);
+      box-shadow: 0 0 0 3px rgba(124,106,247,0.15);
+    }
+
+    /* Activate button */
+    .activate-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-app-region: no-drag;
+      position: relative;
+      overflow: hidden;
+    }
+    .activate-btn:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,106,247,0.5); }
+    .activate-btn:active { transform: translateY(0); }
+    .activate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error + Success messages */
+    .msg {
+      margin-top: 12px;
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .msg.show { display: flex; }
+    .msg.error {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: var(--red);
+    }
+    .msg.success {
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.3);
+      color: var(--green);
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .footer a:hover { text-decoration: underline; }
+
+    /* Separator */
+    .sep {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 20px 0;
+    }
+
+    /* Format hint */
+    .format-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <button class="close-btn" onclick="window.haimuai.close()" title="Exit">✕</button>
+
+  <div class="logo-area">
+    <div class="logo-icon">🤖</div>
+    <div class="logo-text">
+      <div class="logo-name">HaimuAi</div>
+      <div class="logo-sub">Stealth AI Desktop Assistant</div>
+    </div>
+  </div>
+
+  <div class="title">Activate your license</div>
+  <div class="subtitle">Enter your license key to unlock HaimuAi. You received this key via email after purchase.</div>
+
+  <input
+    type="text"
+    class="key-input no-drag"
+    id="keyInput"
+    placeholder="HAIMU-XXXX-YYYY-ZZZZ"
+    maxlength="20"
+    autocomplete="off"
+    spellcheck="false"
+  >
+  <div class="format-hint">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>
+    </svg>
+    Format: HAIMU-XXXX-YYYY-ZZZZ (from your purchase email)
+  </div>
+
+  <button class="activate-btn no-drag" id="activateBtn" onclick="activate()">
+    <span id="btnText">🔑 Activate License</span>
+    <div class="btn-spinner" id="btnSpinner"></div>
+  </button>
+
+  <div class="msg error" id="errorMsg">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+    <span id="errorText">Invalid license key</span>
+  </div>
+
+  <div class="msg success" id="successMsg">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+    License activated! Starting HaimuAi...
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="footer">
+    Don't have a key? <a href="#" onclick="openPurchase()">Purchase a license</a><br>
+    Need help? Contact <a href="#">support@haimuai.com</a>
+  </div>
+</div>
+
+<script>
+  // Auto-format key input as user types
+  document.getElementById('keyInput').addEventListener('input', function () {
+    let val = this.value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    // Insert dashes after HAIMU (5 chars) and every 4 chars after that
+    // Format: HAIMU-XXXX-YYYY-ZZZZ = 5-4-4-4
+    const parts = [];
+    if (val.length > 0) parts.push(val.substring(0, 5));
+    if (val.length > 5) parts.push(val.substring(5, 9));
+    if (val.length > 9) parts.push(val.substring(9, 13));
+    if (val.length > 13) parts.push(val.substring(13, 17));
+    this.value = parts.join('-');
+  });
+
+  document.getElementById('keyInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') activate();
+  });
+
+  async function activate() {
+    const key = document.getElementById('keyInput').value.trim();
+    if (!key) {
+      showError('Please enter your license key.');
+      return;
+    }
+
+    setLoading(true);
+    hideMessages();
+
+    try {
+      const result = await window.haimuai.activateLicense(key);
+      if (result.success) {
+        document.getElementById('successMsg').classList.add('show');
+        document.getElementById('activateBtn').disabled = true;
+      } else {
+        showError(result.error || 'Invalid license key. Please check and try again.');
+      }
+    } catch (err) {
+      showError('Connection error. Please check your internet and try again.');
+    }
+
+    setLoading(false);
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('activateBtn');
+    const text = document.getElementById('btnText');
+    const spinner = document.getElementById('btnSpinner');
+    btn.disabled = loading;
+    text.style.display = loading ? 'none' : 'block';
+    spinner.style.display = loading ? 'block' : 'none';
+  }
+
+  function showError(msg) {
+    document.getElementById('errorText').textContent = msg;
+    document.getElementById('errorMsg').classList.add('show');
+  }
+
+  function hideMessages() {
+    document.getElementById('errorMsg').classList.remove('show');
+    document.getElementById('successMsg').classList.remove('show');
+  }
+
+  function openPurchase() {
+    // Opens your purchase page
+    require('electron').shell.openExternal('https://haimuai.lemonsqueezy.com');
+  }
+</script>
+</body>
+</html>

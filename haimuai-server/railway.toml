@@ -1,0 +1,10 @@
+# Railway deploy config — auto-detected by Railway
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node src/index.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5

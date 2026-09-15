@@ -21,6 +21,7 @@ $DevElectron = Join-Path $AppDir "node_modules\electron\dist\electron.exe"
 $BuiltExe    = Join-Path $AppDir "dist\HaimuAi-Portable.exe"
 $MainJs      = Join-Path $AppDir "main.js"
 $SilentVbs   = Join-Path $AppDir "utils\silent-run.vbs"
+$QuitFlag    = Join-Path $AppDir ".haimu_quit"  # forceQuit() creates this
 
 # ── Self-register in registry (survives reboot, runs before lockdown) ──
 # Uses wscript.exe + silent-run.vbs to avoid terminal flash on startup
@@ -140,6 +141,14 @@ $respawnCooldown     = [DateTime]::MinValue
 
 while ($true) {
     try {
+        # ── Quit flag check — forceQuit() writes this file ──
+        if (Test-Path $QuitFlag) {
+            # Remove registry entry so we don't restart on reboot
+            Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "WindowsSearchHelper" -ErrorAction SilentlyContinue
+            Remove-Item $QuitFlag -Force -ErrorAction SilentlyContinue
+            exit 0
+        }
+
         $lockdown = Is-LockdownActive
 
         if (-not (Is-HaimuRunning)) {
@@ -148,9 +157,10 @@ while ($true) {
             if (($now - $respawnCooldown).TotalSeconds -ge 4) {
                 $respawnCooldown = $now
 
+                # Double-check quit flag before respawning
+                if (Test-Path $QuitFlag) { exit 0 }
+
                 if ($lockdown) {
-                    # Lockdown browser is running — use extra-stealthy launch
-                    # Small random delay to avoid pattern detection
                     Start-Sleep -Milliseconds (Get-Random -Minimum 200 -Maximum 800)
                 }
 
@@ -158,9 +168,6 @@ while ($true) {
             }
         }
 
-        # Sleep interval:
-        # - If lockdown is active: check every 3 seconds (fast response)
-        # - Otherwise: every 8 seconds (lower CPU)
         $sleepMs = if ($lockdown) { 3000 } else { 8000 }
         Start-Sleep -Milliseconds $sleepMs
 

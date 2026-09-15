@@ -1,18 +1,10 @@
-// HaimuAi Chat Module - Multi-Provider (Gemini / Ollama)
+// HaimuAi Chat Module — Server-Proxied (no API keys in client)
 class AIChat {
   constructor() {
-    // ---- Provider config ----
-    this.provider = 'gemini';          // 'gemini' | 'ollama'
-    // ---- API Key Pool (Gemini) ----
-    // apiKey kept for legacy compatibility; apiKeys[] is the authoritative list
-    this.apiKey = 'AIzaSyDPlfZ80yqHlhJ6Sqm_XznxX6qI_AmOYFI';
-    this.apiKeys = ['AIzaSyDPlfZ80yqHlhJ6Sqm_XznxX6qI_AmOYFI'];
-    this._keyIndex = 0;                // which key in the pool is active
-    this._keyQuotaExhausted = {};      // { keyIndex: true } for exhausted keys
-    this.model = 'gemini-2.5-flash';   // Gemini model
-    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta';
-    this.ollamaModel = 'llama3.2';     // Ollama local model
-    this.ollamaBaseURL = 'http://localhost:11434';
+    // ---- Server proxy config (replaces direct Gemini calls) ----
+    this.serverUrl = '';          // Set on init via IPC
+    this.licenseToken = '';       // Set on init via IPC
+    this.model = 'gemini-2.5-flash'; // Passed to server (server can override)
 
     this.conversationHistory = [];
     this.isStreaming = false;
@@ -23,92 +15,54 @@ class AIChat {
     this.interviewQuestionCount = 0;
     this.onlineInterviewMode = false;
     this.onlineInterviewTopic = '';
-    this.interviewDocument = '';  // Uploaded JD/question paper text
-    this.chatSessions = []; // { id, title, history, timestamp, mode }
+    this.interviewDocument = '';
+    this.chatSessions = [];
     this.currentSessionId = null;
 
     // ---- Rate-limit / concurrency management ----
     this._maxConcurrent = 3;
-    this._maxRetries = 5;
+    this._maxRetries = 3;
     this._baseDelay = 1000;
     this._activeRequests = 0;
     this._queue = [];
+
+    // Fetch server URL and token from main process
+    this._initServer();
   }
 
-  // ---- Provider helpers ----
-  setProvider(p) {
-    this.provider = p || 'gemini';
+  async _initServer() {
+    try {
+      this.serverUrl = await window.haimuai.getServerUrl();
+      this.licenseToken = await window.haimuai.getLicenseToken();
+    } catch (e) {
+      console.error('[AIChat] Failed to get server config:', e);
+    }
   }
 
-  setOllamaModel(m) {
-    if (m) this.ollamaModel = m;
+  /** Refresh the license token (called after heartbeat renews it) */
+  async _refreshToken() {
+    try {
+      this.licenseToken = await window.haimuai.getLicenseToken();
+    } catch (e) {}
   }
+
+  /** Get the auth headers for every server request */
+  _authHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'x-license-token': this.licenseToken,
+    };
+  }
+
+
+  // ---- Provider helpers (kept as stubs for compatibility) ----
+  setProvider(p) { /* Server-side only — ignored */ }
+  setOllamaModel(m) { /* Ollama removed — server-side only */ }
+  setApiKey(key) { /* API key is server-side — ignored */ }
+  setApiKeys(keys) { /* API keys are server-side — ignored */ }
 
   async testOllamaConnection() {
-    try {
-      const res = await fetch(`${this.ollamaBaseURL}/api/tags`, { signal: AbortSignal.timeout(4000) });
-      if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
-      const data = await res.json();
-      const models = (data.models || []).map(m => m.name);
-      return { ok: true, models };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  }
-
-  setApiKey(key) {
-    if (key) {
-      this.apiKey = key;
-      // Also make it the sole key in pool if pool is empty
-      if (!this.apiKeys || this.apiKeys.length === 0) {
-        this.apiKeys = [key];
-        this._keyIndex = 0;
-      }
-    }
-  }
-
-  /** Set the full pool of Gemini API keys */
-  setApiKeys(keys) {
-    if (!Array.isArray(keys)) return;
-    // Filter out blank entries
-    const valid = keys.map(k => k.trim()).filter(Boolean);
-    if (valid.length === 0) return;
-    this.apiKeys = valid;
-    this.apiKey = valid[0];  // keep legacy field in sync
-    this._keyIndex = 0;
-    this._keyQuotaExhausted = {};
-  }
-
-  /** Returns the currently active API key */
-  _getActiveKey() {
-    if (!this.apiKeys || this.apiKeys.length === 0) return this.apiKey;
-    return this.apiKeys[this._keyIndex];
-  }
-
-  /**
-   * Marks the current key as quota-exhausted and rotates to the next one.
-   * Returns true if a new key is available, false if all keys are exhausted.
-   */
-  _rotateKey() {
-    this._keyQuotaExhausted[this._keyIndex] = true;
-    const n = this.apiKeys.length;
-    for (let i = 1; i <= n; i++) {
-      const next = (this._keyIndex + i) % n;
-      if (!this._keyQuotaExhausted[next]) {
-        this._keyIndex = next;
-        this.apiKey = this.apiKeys[next];
-        console.warn(`[HaimuAi] API key rotated → key #${next + 1} of ${n}`);
-        // Notify UI
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('api-key-rotated', {
-            detail: { keyIndex: next, total: n }
-          }));
-        }
-        return true;
-      }
-    }
-    console.error('[HaimuAi] All API keys exhausted!');
-    return false; // all keys dead
+    return { ok: false, error: 'Ollama is not available in this version' };
   }
 
 
@@ -371,10 +325,9 @@ CRITICAL RULES:
   }
 
   async sendMessage(message, command = 'general', language = 'javascript', onChunk = null) {
-    if (this.provider === 'ollama') {
-      // No API key needed for local Ollama
-    } else if (!this._getActiveKey()) {
-      throw new Error('Gemini API key not set. Please add it in Settings.');
+    await this._refreshToken();
+    if (!this.licenseToken) {
+      throw new Error('License token missing. Please restart HaimuAi.');
     }
 
     this.isStreaming = true;
@@ -389,10 +342,7 @@ CRITICAL RULES:
     this.conversationHistory.push({ role: 'user', content: message });
 
     try {
-      if (this.provider === 'ollama') {
-        return await this._sendOllamaMessage(message, systemPrompt, onChunk);
-      }
-      return await this._sendGeminiMessage(message, systemPrompt, onChunk);
+      return await this._sendServerMessage(message, systemPrompt, onChunk);
     } catch (error) {
       this.isStreaming = false;
       if (error.name === 'AbortError') return '[Response cancelled]';
@@ -401,128 +351,30 @@ CRITICAL RULES:
   }
 
   // ============================================================
-  // OLLAMA (local) backend
+  // SERVER PROXY — Text Chat
   // ============================================================
-  async _sendOllamaMessage(message, systemPrompt, onChunk) {
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...this.conversationHistory.slice(0, -1),
-      { role: 'user', content: message }
-    ];
-
-    const body = {
-      model: this.ollamaModel,
-      messages,
-      stream: !!onChunk
-    };
-
-    const response = await fetch(`${this.ollamaBaseURL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: this.abortController.signal
-    });
-
-    if (!response.ok) {
-      const txt = await response.text().catch(() => '');
-      throw new Error(`Ollama error ${response.status}: ${txt}`);
-    }
-
-    if (onChunk) {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullText = '';
-      let buf = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() || '';
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const parsed = JSON.parse(line);
-            const chunk = parsed.message?.content || '';
-            if (chunk) { fullText += chunk; onChunk(chunk, fullText); }
-            if (parsed.done) break;
-          } catch (e) {}
-        }
-      }
-
-      this.conversationHistory.push({ role: 'assistant', content: fullText });
-      this.isStreaming = false;
-      this.saveCurrentToSession();
-      return fullText;
-    } else {
-      const data = await response.json();
-      const text = data.message?.content || 'No response.';
-      this.conversationHistory.push({ role: 'assistant', content: text });
-      this.isStreaming = false;
-      this.saveCurrentToSession();
-      return text;
-    }
-  }
-
-  // ============================================================
-  // GEMINI backend
-  // ============================================================
-  async _sendGeminiMessage(message, systemPrompt, onChunk) {
-    // Build Gemini contents from history
-    const contents = this.conversationHistory.map(h => ({
-      role: h.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: h.content }]
+  async _sendServerMessage(message, systemPrompt, onChunk) {
+    const messages = this.conversationHistory.map(h => ({
+      role: h.role,
+      content: h.content,
     }));
 
-    const body = {
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
-    };
-
-    const endpoint = onChunk ? 'streamGenerateContent?alt=sse' : 'generateContent';
-    const url = `${this.baseURL}/models/${this.model}:${endpoint}&key=${this._getActiveKey()}`;
-
-    let response;
-    let rotationAttempts = 0;
-    const maxRotations = this.apiKeys.length;
-
-    while (rotationAttempts <= maxRotations) {
-      const activeUrl = `${this.baseURL}/models/${this.model}:${endpoint}&key=${this._getActiveKey()}`;
-      response = await this._enqueue(() =>
-        this._fetchWithRetry(activeUrl, {
+    if (onChunk) {
+      // Streaming via SSE
+      const response = await this._enqueue(() =>
+        fetch(`${this.serverUrl}/api/ai/stream`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: this.abortController.signal
+          headers: this._authHeaders(),
+          body: JSON.stringify({ messages, systemPrompt, model: this.model }),
+          signal: this.abortController.signal,
         })
       );
 
-      // Check for quota error → rotate key and retry
-      if (response.status === 429 || response.status === 403) {
-        const errBody = await response.clone().json().catch(() => ({}));
-        const errMsg = (errBody.error?.message || '').toLowerCase();
-        const isQuota = response.status === 429 ||
-          errMsg.includes('quota') ||
-          errMsg.includes('resource_exhausted') ||
-          errMsg.includes('rate limit');
-        if (isQuota) {
-          const rotated = this._rotateKey();
-          if (!rotated) break;  // all keys dead, fall through to error
-          rotationAttempts++;
-          continue;
-        }
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Server error: ${response.status}`);
       }
-      break;  // success or non-quota error
-    }
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Gemini error: ${response.status}`);
-    }
-
-    if (onChunk) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = '';
@@ -551,13 +403,39 @@ CRITICAL RULES:
       this.saveCurrentToSession();
       return fullText;
     } else {
+      // Non-streaming
+      const response = await this._enqueue(() =>
+        fetch(`${this.serverUrl}/api/ai/chat`, {
+          method: 'POST',
+          headers: this._authHeaders(),
+          body: JSON.stringify({ messages, systemPrompt, model: this.model }),
+          signal: this.abortController.signal,
+        })
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Server error: ${response.status}`);
+      }
+
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+      const text = data.text || 'No response.';
       this.conversationHistory.push({ role: 'assistant', content: text });
       this.isStreaming = false;
       this.saveCurrentToSession();
       return text;
     }
+  }
+
+  // Legacy stubs — kept so nothing breaks if still called
+  async _sendGeminiMessage(message, systemPrompt, onChunk) {
+    return this._sendServerMessage(message, systemPrompt, onChunk);
+  }
+  async _sendOllamaMessage(message, systemPrompt, onChunk) {
+    return this._sendServerMessage(message, systemPrompt, onChunk);
+  }
+  async _sendOpenAIMessage(message, systemPrompt, onChunk) {
+    return this._sendServerMessage(message, systemPrompt, onChunk);
   }
 
   // =============================================
@@ -612,8 +490,9 @@ CRITICAL RULES:
 
   // Analyze one or more screenshots at once
   async analyzeScreenshots(imageDataArray, question = 'What do you see in these screenshots? Describe and help the user.', language = 'javascript', syncWithChat = true) {
-    if (this.provider !== 'ollama' && !this._getActiveKey()) {
-      throw new Error('Gemini API key not set.');
+    await this._refreshToken();
+    if (!this.licenseToken) {
+      throw new Error('License token missing. Please restart HaimuAi.');
     }
     if (!imageDataArray || imageDataArray.length === 0) {
       throw new Error('No screenshots provided.');
@@ -654,12 +533,8 @@ CRITICAL RULES:
     }
 
     let result;
-    if (this.provider === 'ollama') {
-      // Ollama vision: analyze first image only (llava doesn't reliably support multi-image)
-      result = await this._analyzeOllamaVision(imageDataArray[0], systemContent, effectiveQuestion);
-    } else {
-      result = await this._analyzeGeminiVisionMulti(imageDataArray, systemContent, effectiveQuestion, syncWithChat);
-    }
+    // Always use server proxy for vision
+    result = await this._analyzeServerVision(imageDataArray, systemContent, effectiveQuestion, syncWithChat);
 
     // Add to conversation history so future messages have this context
     if (syncWithChat) {
@@ -672,120 +547,59 @@ CRITICAL RULES:
     return result;
   }
 
-  // Ollama vision (uses llava model)
-  async _analyzeOllamaVision(imageData, systemContent, question) {
-    // Strip data URL prefix to get raw base64
-    const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
-    const visionModel = this.ollamaModel.includes('llava') ? this.ollamaModel : 'llava';
+  // ============================================================
+  // SERVER PROXY — Vision / Screenshot Analysis
+  // ============================================================
+  async _analyzeServerVision(imageDataArray, systemContent, question, syncWithChat) {
+    // Use the first image for simple case, send all for multi
+    const imageBase64 = imageDataArray[0]; // server handles stripping prefix
 
-    const body = {
-      model: visionModel,
-      messages: [
-        { role: 'system', content: systemContent },
-        { role: 'user', content: question, images: [base64] }
-      ],
-      stream: false
-    };
-
-    const response = await fetch(`${this.ollamaBaseURL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const txt = await response.text().catch(() => '');
-      throw new Error(`Ollama vision error ${response.status}: ${txt}`);
-    }
-
-    const data = await response.json();
-    return data.message?.content || 'Could not analyze screenshot with Ollama.';
-  }
-
-  // Gemini vision (single image — legacy)
-  async _analyzeGeminiVision(imageData, systemContent, question, syncWithChat) {
-    return this._analyzeGeminiVisionMulti([imageData], systemContent, question, syncWithChat);
-  }
-
-  // Gemini vision — supports multiple images in one request
-  async _analyzeGeminiVisionMulti(imageDataArray, systemContent, question, syncWithChat) {
-    const contextParts = [];
-    if (syncWithChat && this.conversationHistory.length > 0) {
-      this.conversationHistory.slice(-6).forEach(h => {
-        contextParts.push({ text: `${h.role === 'assistant' ? 'Assistant' : 'User'}: ${h.content}` });
-      });
-    }
-
-    // Build inline_data parts for each image
-    const imageParts = imageDataArray.map(imageData => {
-      const mimeType = imageData.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/png';
-      const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
-      return { inline_data: { mime_type: mimeType, data: base64 } };
-    });
-
-    // Prefix text label when there are multiple images
-    const labelPart = imageDataArray.length > 1
-      ? [{ text: `The user has provided ${imageDataArray.length} screenshots. Analyze them together.` }]
+    // Build context from recent history
+    const contextMessages = syncWithChat && this.conversationHistory.length > 0
+      ? this.conversationHistory.slice(-6).map(h => ({ role: h.role, content: h.content }))
       : [];
 
-    const body = {
-      systemInstruction: { parts: [{ text: systemContent }] },
-      contents: [{
-        role: 'user',
-        parts: [
-          ...contextParts,
-          ...labelPart,
-          { text: question },
-          ...imageParts
-        ]
-      }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
-    };
+    // For multi-image, embed all images in the prompt text (server will handle)
+    const multiImageNote = imageDataArray.length > 1
+      ? `\n[Note: User provided ${imageDataArray.length} screenshots]`
+      : '';
 
-    const url = `${this.baseURL}/models/${this.model}:generateContent?key=${this._getActiveKey()}`;
-    let response = await this._enqueue(() =>
-      this._fetchWithRetry(url, {
+    const response = await this._enqueue(() =>
+      fetch(`${this.serverUrl}/api/ai/vision`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        headers: this._authHeaders(),
+        body: JSON.stringify({
+          imageBase64,
+          prompt: question + multiImageNote,
+          messages: contextMessages,
+          systemPrompt: systemContent,
+          model: this.model,
+        }),
       })
     );
 
-    // Rotate key on quota errors for vision too
-    let rotationAttempts = 0;
-    while ((response.status === 429 || response.status === 403) && rotationAttempts < this.apiKeys.length) {
-      const errBody = await response.clone().json().catch(() => ({}));
-      const errMsg = (errBody.error?.message || '').toLowerCase();
-      if (errMsg.includes('quota') || errMsg.includes('resource_exhausted') || response.status === 429) {
-        const rotated = this._rotateKey();
-        if (!rotated) break;
-        rotationAttempts++;
-        const newUrl = `${this.baseURL}/models/${this.model}:generateContent?key=${this._getActiveKey()}`;
-        response = await this._enqueue(() =>
-          this._fetchWithRetry(newUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          })
-        );
-      } else break;
-    }
-
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Gemini vision error: ${response.status}`);
+      throw new Error(err.error || `Vision server error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Could not analyze screenshot(s).';
+    return data.text || 'Could not analyze screenshot(s).';
   }
 
-  // Legacy alias
+  // Legacy stubs for vision
+  async _analyzeGeminiVision(imageData, systemContent, question, syncWithChat) {
+    return this._analyzeServerVision([imageData], systemContent, question, syncWithChat);
+  }
+  async _analyzeGeminiVisionMulti(imageDataArray, systemContent, question, syncWithChat) {
+    return this._analyzeServerVision(imageDataArray, systemContent, question, syncWithChat);
+  }
+  async _analyzeOllamaVision(imageData, systemContent, question) {
+    return this._analyzeServerVision([imageData], systemContent, question, false);
+  }
   async _analyzeOpenAIVision(imageData, systemContent, question, syncWithChat) {
-    return this._analyzeGeminiVision(imageData, systemContent, question, syncWithChat);
+    return this._analyzeServerVision([imageData], systemContent, question, syncWithChat);
   }
-
-
 
   cancelStream() {
     if (this.abortController) {

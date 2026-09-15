@@ -94,6 +94,10 @@ process.on('uncaughtException', (err) => {
   console.error('[Fatal]', err);
 });
 
+// ─── Server URL ─────────────────────────────────────────────────────────────
+// ALL AI calls go through this server. The real Gemini key lives there.
+const SERVER_URL = 'https://haimuai-server-production.up.railway.app';
+
 const store = new Store({
   defaults: {
     windowBounds: { width: 420, height: 650 },
@@ -105,18 +109,19 @@ const store = new Store({
     stealthMode: true,
     interactionSafeMode: false,
     ghostMode: false,
-    apiKey: 'AIzaSyDPlfZ80yqHlhJ6Sqm_XznxX6qI_AmOYFI',
-    geminiApiKeys: ['AIzaSyDPlfZ80yqHlhJ6Sqm_XznxX6qI_AmOYFI'],
+    // ── License (NO API keys stored here) ──
+    licenseKey: '',
+    licenseToken: '',
+    // ── App settings ──
     defaultLanguage: 'javascript',
     defaultCommand: 'explain',
     autoFocus: true,
     alwaysActive: false,
     typingSpeed: 50,
     fontSize: 14,
-    provider: 'gemini',
-    ollamaModel: 'llama3.2'
   }
 });
+
 
 // Single instance lock - prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
@@ -422,14 +427,15 @@ function toggleAlwaysActive() {
   store.set('alwaysActive', alwaysActive);
   if (mainWindow) {
     if (alwaysActive) {
-      // Make window non-focusable at Electron level
-      mainWindow.setFocusable(false);
       // Apply WS_EX_NOACTIVATE at Win32 level — clicking won't steal foreground
+      // from the exam browser, but keyboard input still works in our renderer.
+      // NOTE: We do NOT call setFocusable(false) because that blocks ALL keyboard
+      // input to the web content (textbox, etc.). WS_EX_NOACTIVATE alone is
+      // sufficient to prevent OS-level activation/focus stealing.
       applyNoActivate(mainWindow);
       console.log('[AlwaysActive] Enabled — window will not steal focus');
     } else {
       // Restore normal focus behavior
-      mainWindow.setFocusable(true);
       restoreActivate(mainWindow);
       console.log('[AlwaysActive] Disabled — normal focus restored');
     }
@@ -507,7 +513,7 @@ function handleHookEvent(event) {
   switch (event) {
     // ---- Core Controls ----
     case 'TOGGLE':          toggleWindow(); break;
-    case 'QUIT':            app.isQuitting = true; app.quit(); break;
+    case 'QUIT':            forceQuit(); break;
 
     // ---- Screenshot ----
     case 'SCREENSHOT':      takeScreenshot(); break;
@@ -734,8 +740,12 @@ function registerShortcuts() {
       showWindow();
       mainWindow?.webContents.send('toggle-listen');
     });
-    // Emergency quit (Ctrl+Shift+Q)
-    globalShortcut.register('Ctrl+Shift+Q', () => { app.isQuitting = true; app.quit(); });
+    // Screenshot + Answer
+    globalShortcut.register('Alt+A', () => {
+      takeScreenshotAndAnswer();
+    });
+    // Emergency quit (Ctrl+Shift+Q) — kills guardians so app stays dead
+    globalShortcut.register('Ctrl+Shift+Q', () => forceQuit());
   } catch (e) {
     console.log('[Shortcuts] globalShortcut registration failed (expected under lockdown):', e.message);
   }
@@ -960,6 +970,54 @@ ipcMain.handle('take-screenshot', async () => {
   return null;
 });
 
+// ---- Real Keystroke Simulation (Auto-Type) ----
+// Uses PowerShell to simulate keypresses in the foreground window
+// This is used to type AI responses into exam browser textboxes
+ipcMain.handle('simulate-typing', async (event, text) => {
+  if (!text) return false;
+  try {
+    // Escape special characters for PowerShell/SendKeys
+    const escaped = text
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "''")
+      .replace(/\+/g, '{+}')
+      .replace(/\^/g, '{^}')
+      .replace(/~/g, '{~}')
+      .replace(/%/g, '{%}')
+      .replace(/\(/g, '{(}')
+      .replace(/\)/g, '{)}')
+      .replace(/\{/g, '{{}')
+      .replace(/\}/g, '{}}')
+      .replace(/\[/g, '{[}')
+      .replace(/\]/g, '{]}')
+      .replace(/\n/g, '{ENTER}');
+
+    const psCmd = `
+      Add-Type -AssemblyName System.Windows.Forms
+      [System.Windows.Forms.SendKeys]::SendWait('${escaped}')
+    `.trim();
+
+    return new Promise((resolve) => {
+      execFile('powershell.exe', [
+        '-ExecutionPolicy', 'Bypass',
+        '-WindowStyle', 'Hidden',
+        '-NonInteractive',
+        '-Command', psCmd
+      ], { windowsHide: true, timeout: 5000 }, (err) => {
+        if (err) {
+          console.error('[AutoType] SendKeys failed:', err.message);
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      });
+    });
+  } catch (err) {
+    console.error('[AutoType] Error:', err.message);
+    return false;
+  }
+});
+
 ipcMain.handle('get-clipboard', () => {
   const text = clipboard.readText();
   const image = clipboard.readImage();
@@ -981,10 +1039,11 @@ ipcMain.on('minimize-window', () => {
   }
 });
 ipcMain.on('close-window', () => {
-  if (mainWindow) {
-    isVisible = false;
-    mainWindow.hide();
-  }
+  // X button = actually quit the app, not just hide
+  forceQuit();
+});
+ipcMain.on('force-quit', () => {
+  forceQuit();
 });
 ipcMain.on('maximize-window', () => {
   if (mainWindow?.isMaximized()) {
@@ -1015,8 +1074,232 @@ ipcMain.handle('toggle-always-active', () => {
 
 ipcMain.handle('get-always-active', () => alwaysActive);
 
+// ─── License Validation + Heartbeat ─────────────────────────────────────────
+let heartbeatInterval = null;
+
+/**
+ * Get a hardware fingerprint for HWID locking.
+ * Uses CPU model + total memory as a stable identifier.
+ */
+async function getHWID() {
+  try {
+    const os = require('os');
+    const cpus = os.cpus();
+    const cpuModel = cpus.length > 0 ? cpus[0].model : 'unknown';
+    const totalMem = os.totalmem();
+    const raw = `${cpuModel}-${totalMem}-${os.platform()}`;
+    // Simple hash
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  } catch (e) {
+    return 'unknown';
+  }
+}
+
+/**
+ * Validate the stored license key with the server.
+ * Returns { valid: true, token } or { valid: false, error }
+ */
+async function validateLicense(key) {
+  try {
+    const hwid = await getHWID();
+    const fetch = require('node-fetch');
+    const res = await fetch(`${SERVER_URL}/api/license/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, hwid }),
+      timeout: 15000,
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('[License] Validation request failed:', err.message);
+    return { valid: false, error: 'Cannot reach license server. Check your internet connection.' };
+  }
+}
+
+/**
+ * Start the heartbeat — pings the server every 5 minutes.
+ * If the server returns { active: false }, the app shuts down.
+ */
+function startHeartbeat() {
+  if (heartbeatInterval) return;
+  heartbeatInterval = setInterval(async () => {
+    const token = store.get('licenseToken');
+    if (!token) return;
+    try {
+      const fetch = require('node-fetch');
+      const res = await fetch(`${SERVER_URL}/api/license/heartbeat`, {
+        headers: { 'x-license-token': token },
+        timeout: 10000,
+      });
+      const data = await res.json();
+      if (!data.active) {
+        console.log('[Heartbeat] License revoked by server. Shutting down.');
+        // Notify renderer then quit
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('license-revoked', data.reason || 'License has been revoked');
+        }
+        // Immediately block all AI by clearing the token from memory
+        store.set('licenseToken', '');
+        setTimeout(() => forceQuit(), 3000);
+      } else if (data.token) {
+        // Refresh token
+        store.set('licenseToken', data.token);
+      }
+    } catch (err) {
+      // Network error — don't kill app on transient failures
+      console.warn('[Heartbeat] Ping failed (network issue):', err.message);
+    }
+  }, 30 * 1000); // 30 seconds — fast revoke detection
+}
+
+/**
+ * Force quit — kills all guardian/watchdog processes first so the
+ * app does not get respawned after quitting (Ctrl+Shift+Q fix).
+ */
+function forceQuit() {
+  console.log('[ForceQuit] Shutting down all processes...');
+  app.isQuitting = true;
+
+  // Write quit flag so immortal-guardian.ps1 stops respawning
+  const quitFlagPath = path.join(__dirname, '.haimu_quit');
+  try { require('fs').writeFileSync(quitFlagPath, Date.now().toString()); } catch(e) {}
+
+  // Immediately clear license token so any in-flight AI calls fail
+  store.set('licenseToken', '');
+  store.set('licenseKey', '');  // force re-activation on next launch
+
+  // Stop heartbeat
+  if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+
+  // Stop focus enforcement
+  stopFocusEnforcement();
+
+  // Stop keyhook
+  stopKeyHook();
+
+  // Kill guardian processes (child refs)
+  if (guardianProcess) { try { guardianProcess.kill('SIGKILL'); } catch(e) {} guardianProcess = null; }
+  if (immortalGuardianProcess) { try { immortalGuardianProcess.kill('SIGKILL'); } catch(e) {} immortalGuardianProcess = null; }
+
+  // Kill ALL powershell processes running guardian/watchdog scripts via taskkill
+  if (process.platform === 'win32') {
+    try {
+      require('child_process').execFileSync('powershell.exe', [
+        '-ExecutionPolicy', 'Bypass', '-NonInteractive', '-WindowStyle', 'Hidden',
+        '-Command',
+        `Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='wscript.exe'" | Where-Object { $_.CommandLine -match 'guardian|watchdog|immortal|wsh_helper' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`
+      ], { timeout: 4000, windowsHide: true });
+    } catch(e) {}
+
+    // Also remove registry Run key so it won't restart on reboot
+    try {
+      require('child_process').execFileSync('powershell.exe', [
+        '-ExecutionPolicy', 'Bypass', '-NonInteractive', '-WindowStyle', 'Hidden',
+        '-Command',
+        `Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'WindowsSearchHelper' -ErrorAction SilentlyContinue`
+      ], { timeout: 3000, windowsHide: true });
+    } catch(e) {}
+  }
+
+  // FORCE destroy window (bypasses close event + closable:false)
+  // app.quit() is blocked by e.preventDefault() in the close handler.
+  // mainWindow.destroy() does NOT fire 'close', so nothing can block it.
+  try {
+    globalShortcut.unregisterAll();
+  } catch(e) {}
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try { mainWindow.destroy(); } catch(e) {}
+  }
+  if (licenseWindow && !licenseWindow.isDestroyed()) {
+    try { licenseWindow.destroy(); } catch(e) {}
+  }
+
+  // app.exit(0) is synchronous and does NOT emit before-quit/will-quit events.
+  // This is the most forceful way to exit — nothing can block it.
+  setTimeout(() => app.exit(0), 300);
+}
+
+/**
+ * Create a small license-entry window (shown before main window if no valid key).
+ */
+let licenseWindow = null;
+
+function createLicenseWindow() {
+  licenseWindow = new BrowserWindow({
+    width: 480,
+    height: 420,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    title: 'HaimuAi Activation',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+  licenseWindow.loadFile(path.join(__dirname, 'renderer', 'license.html'));
+  licenseWindow.center();
+}
+
 // App lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Check for stored license key and validate
+  const storedKey = store.get('licenseKey');
+  if (storedKey) {
+    console.log('[License] Validating stored key...');
+    const result = await validateLicense(storedKey);
+    if (result.valid) {
+      store.set('licenseToken', result.token);
+      console.log('[License] Valid. Welcome back!');
+      bootApp();
+    } else {
+      console.log('[License] Invalid:', result.error);
+      store.set('licenseToken', '');
+      createLicenseWindow();
+    }
+  } else {
+    console.log('[License] No key stored. Showing activation screen.');
+    createLicenseWindow();
+  }
+});
+
+// IPC: License activation (from license.html)
+ipcMain.handle('activate-license', async (event, key) => {
+  const result = await validateLicense(key.trim());
+  if (result.valid) {
+    store.set('licenseKey', key.trim().toUpperCase());
+    store.set('licenseToken', result.token);
+    if (licenseWindow) {
+      licenseWindow.close();
+      licenseWindow = null;
+    }
+    bootApp();
+    return { success: true };
+  } else {
+    return { success: false, error: result.error };
+  }
+});
+
+// IPC: Get server URL (for renderer to make AI calls)
+ipcMain.handle('get-server-url', () => SERVER_URL);
+ipcMain.handle('get-license-token', () => store.get('licenseToken'));
+
+// IPC: Save license token (after heartbeat refresh)
+ipcMain.handle('save-license-token', (event, token) => {
+  store.set('licenseToken', token);
+});
+
+function bootApp() {
   createWindow();
 
   // Apply anti-kill protection immediately (priority + memory lock)
@@ -1046,14 +1329,17 @@ app.whenReady().then(() => {
   // Restore alwaysActive mode if it was previously enabled
   alwaysActive = store.get('alwaysActive');
   if (alwaysActive && mainWindow) {
-    mainWindow.setFocusable(false);
     applyNoActivate(mainWindow);
     mainWindow.webContents.once('did-finish-load', () => {
       mainWindow.webContents.send('always-active-changed', true);
     });
     console.log('[AlwaysActive] Restored from saved setting');
   }
-});
+
+  // Start heartbeat AFTER app boots
+  startHeartbeat();
+}
+
 
 app.on('window-all-closed', (e) => {
   // Prevent app from quitting when window is closed - stay stealth in background

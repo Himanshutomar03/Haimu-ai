@@ -29,10 +29,12 @@ public class LowLevelKeyHook {
     private const int VK_L        = 0x4C;  // L key
     private const int VK_A        = 0x41;  // A key
 
-    private static IntPtr hookId    = IntPtr.Zero;
-    private static bool   shiftHeld = false;
-    private static bool   ctrlHeld  = false;
-    private static bool   altHeld   = false;
+    private static IntPtr hookId       = IntPtr.Zero;
+    private static bool   shiftHeld    = false;
+    private static bool   ctrlHeld     = false;
+    private static bool   altHeld      = false;
+    private static bool   leftAltHeld  = false;
+    private static bool   rightAltHeld = false;
 
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -108,9 +110,13 @@ public class LowLevelKeyHook {
                 if (isUp)   ctrlHeld = false;
             }
             // Track Alt
-            if (vk == VK_LMENU || vk == VK_RMENU) {
-                if (isDown) altHeld = true;
-                if (isUp)   altHeld = false;
+            if (vk == VK_LMENU) {
+                if (isDown) { leftAltHeld = true; altHeld = true; }
+                if (isUp)   { leftAltHeld = false; altHeld = (rightAltHeld); }
+            }
+            if (vk == VK_RMENU) {
+                if (isDown) { rightAltHeld = true; altHeld = true; }
+                if (isUp)   { rightAltHeld = false; altHeld = (leftAltHeld); }
             }
 
             // Ctrl + Shift + Space -> TOGGLE
@@ -128,6 +134,12 @@ public class LowLevelKeyHook {
             // Ctrl + Shift + A -> ALWAYSACTIVE (no focus stealing)
             if (vk == VK_A && ctrlHeld && shiftHeld && isDown) {
                 Emit("ALWAYSACTIVE");
+                return (IntPtr)1;
+            }
+
+            // Right Alt + A (or Alt + A) -> ANSWER (screenshot & answer)
+            if (vk == VK_A && altHeld && !ctrlHeld && !shiftHeld && isDown) {
+                Emit("ANSWER");
                 return (IntPtr)1;
             }
         }

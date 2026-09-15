@@ -287,77 +287,7 @@
         </button>
       </div>
       <div class="settings-body">
-        <!-- AI Provider Selector -->
-        <div class="settings-group">
-          <label class="settings-label">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-            </svg>
-            AI Provider
-          </label>
-          <div class="settings-toggle-group" id="providerToggleGroup">
-            <button class="toggle-btn active" data-provider="gemini" id="providerGeminiBtn">☁️ Gemini (Cloud)</button>
-            <button class="toggle-btn" data-provider="ollama" id="providerOllamaBtn">🖥️ Ollama (Local)</button>
-          </div>
-        </div>
-
-        <!-- Gemini Section -->
-        <div class="settings-group" id="geminiSection">
-          <label class="settings-label">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-            </svg>
-            Gemini API Keys
-            <span class="api-key-active-badge" id="apiKeyActiveBadge">Key 1 active</span>
-          </label>
-
-          <!-- Dynamic key list -->
-          <div class="api-keys-list" id="apiKeysList"></div>
-
-          <!-- Add key button -->
-          <button class="api-key-add-btn" id="btnAddApiKey">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Add another API key
-          </button>
-
-          <!-- Rotation status -->
-          <div class="api-key-rotation-info" id="apiKeyRotationInfo" style="display:none">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/>
-            </svg>
-            <span id="apiKeyRotationText">Auto-switching when quota exceeded</span>
-          </div>
-
-          <small class="settings-hint">Get keys from <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> · Keys rotate automatically when quota is hit</small>
-        </div>
-
-        <!-- Ollama Section -->
-        <div class="settings-group" id="ollamaSection" style="display:none">
-          <label class="settings-label">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
-            </svg>
-            Local Model
-          </label>
-          <input type="text" id="settingOllamaModel" class="settings-input" placeholder="llama3.2" value="llama3.2">
-          <div class="ollama-model-chips">
-            <button class="topic-chip" data-model="llama3.2">llama3.2</button>
-            <button class="topic-chip" data-model="mistral">mistral</button>
-            <button class="topic-chip" data-model="codellama">codellama</button>
-            <button class="topic-chip" data-model="phi3:mini">phi3:mini</button>
-          </div>
-          <div class="ollama-status" id="ollamaStatus">
-            <span class="ollama-status-dot" id="ollamaStatusDot">⚪</span>
-            <span id="ollamaStatusText">Click Test to check Ollama</span>
-            <button class="footer-btn" id="btnTestOllama" style="margin-left:auto">Test</button>
-          </div>
-          <small class="settings-hint">Install: <a href="https://ollama.com/download/windows" target="_blank">ollama.com</a> · Then run: <code>ollama pull llama3.2</code></small>
-        </div>
-
-
-
+        <!-- AI is handled server-side — no API key entry needed -->
 
 
         <!-- Theme -->
@@ -837,6 +767,7 @@ Education: B.Tech Computer Science, MIT University
   <script src="modules/ai-chat.js"></script>
   <script src="modules/screenshot.js"></script>
   <script src="modules/auto-type.js"></script>
+  <script src="modules/virtual-keyboard.js"></script>
   <script src="modules/voice.js"></script>
   <script src="modules/settings.js"></script>
   <script src="app.js"></script>

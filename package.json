@@ -10,11 +10,20 @@
     "launch": "powershell -ExecutionPolicy Bypass -File ./launch.ps1",
     "launch:stealth": "powershell -ExecutionPolicy Bypass -File ./launch.ps1 -Stealth",
     "kill": "powershell -ExecutionPolicy Bypass -File ./launch.ps1 -Kill",
-    "build": "electron-builder --win",
+    "obfuscate": "node scripts/obfuscate.js",
+    "build": "npm run obfuscate && electron-builder --win",
+    "build:mac": "npm run obfuscate && electron-builder --mac",
+    "build:all": "npm run obfuscate && electron-builder --win --mac",
     "build:portable": "electron-builder --win portable",
     "build:dir": "electron-builder --win --dir"
   },
-  "keywords": ["ai", "desktop", "assistant", "screenshot", "electron"],
+  "keywords": [
+    "ai",
+    "desktop",
+    "assistant",
+    "screenshot",
+    "electron"
+  ],
   "author": "HaimuAi",
   "license": "MIT",
   "dependencies": {
@@ -24,7 +33,8 @@
   },
   "devDependencies": {
     "electron": "^30.0.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "javascript-obfuscator": "^4.2.2"
   },
   "build": {
     "appId": "com.haimuai.desktop",
@@ -44,14 +54,34 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "renderer/assets/icon.png"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "renderer/assets/icon.png",
+      "category": "public.app-category.productivity"
+    },
+    "dmg": {
+      "artifactName": "HaimuAi-${version}.dmg"
     },
     "nsis": {
       "oneClick": true,
