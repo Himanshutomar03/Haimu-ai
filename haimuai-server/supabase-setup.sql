@@ -15,23 +15,31 @@ CREATE TABLE IF NOT EXISTS licenses (
   created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   expires_at    TIMESTAMPTZ,
   last_seen     TIMESTAMPTZ,
-  usage_count   INTEGER DEFAULT 0 NOT NULL,
-  gemini_api_key TEXT  -- dedicated Gemini key for this license (required)
+  usage_count   INTEGER DEFAULT 0 NOT NULL
 );
 
--- Add gemini_api_key to existing tables (safe to run on already-created DB)
-ALTER TABLE licenses ADD COLUMN IF NOT EXISTS gemini_api_key TEXT;
+-- ================================================================
+-- Per-license Gemini API keys table
+-- Each license can have MULTIPLE Gemini API keys (key pool per user)
+-- ================================================================
+CREATE TABLE IF NOT EXISTS license_api_keys (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  license_key TEXT NOT NULL REFERENCES licenses(key) ON DELETE CASCADE,
+  api_key     TEXT NOT NULL,
+  label       TEXT DEFAULT 'Key',   -- optional label e.g. "Primary", "Backup"
+  active      BOOLEAN DEFAULT true NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
 
--- Index for fast key lookups
-CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(key);
-CREATE INDEX IF NOT EXISTS idx_licenses_active ON licenses(active);
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_licenses_key       ON licenses(key);
+CREATE INDEX IF NOT EXISTS idx_licenses_active    ON licenses(active);
+CREATE INDEX IF NOT EXISTS idx_lic_api_keys_lic   ON license_api_keys(license_key);
+CREATE INDEX IF NOT EXISTS idx_lic_api_keys_active ON license_api_keys(license_key, active);
 
 -- Enable Row Level Security (RLS) — only service role can access
-ALTER TABLE licenses ENABLE ROW LEVEL SECURITY;
-
--- Only the service role (your server) can read/write
--- No policy = no access for anon/authenticated roles
--- Your server uses SUPABASE_SERVICE_KEY which bypasses RLS
+ALTER TABLE licenses         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE license_api_keys ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to increment usage count atomically
 CREATE OR REPLACE FUNCTION increment(x integer)
@@ -39,7 +47,7 @@ RETURNS integer AS $$
   SELECT x + 1
 $$ LANGUAGE sql IMMUTABLE;
 
--- View for admin stats (optional, for dashboard)
+-- View for admin stats
 CREATE OR REPLACE VIEW license_stats AS
 SELECT
   COUNT(*) AS total,
@@ -49,7 +57,7 @@ SELECT
   SUM(usage_count) AS total_requests
 FROM licenses;
 
--- Atomic usage counter (called from server on every AI request)
+-- Atomic usage counter
 CREATE OR REPLACE FUNCTION increment_usage(license_key TEXT)
 RETURNS void AS $$
   UPDATE licenses

@@ -1,510 +1,190 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HaimuAI — Admin Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #0a0a0f;
-      --surface: #12121a;
-      --surface2: #1a1a26;
-      --border: #2a2a3a;
-      --accent: #7c6af7;
-      --accent2: #5b4fd4;
-      --green: #22c55e;
-      --red: #ef4444;
-      --yellow: #f59e0b;
-      --text: #e8e8f0;
-      --text-dim: #7a7a9a;
-      --font: 'Inter', sans-serif;
-      --mono: 'JetBrains Mono', monospace;
+      --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26;
+      --border: #2a2a3a; --accent: #7c6af7; --accent2: #5b4fd4;
+      --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+      --text: #e8e8f0; --text-dim: #7a7a9a;
+      --font: 'Inter', sans-serif; --mono: 'JetBrains Mono', monospace;
     }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
 
-    body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
+    /* Login */
+    #loginScreen { display:flex; align-items:center; justify-content:center; min-height:100vh;
+      background: radial-gradient(ellipse at 50% 0%, rgba(124,106,247,0.15) 0%, transparent 60%); }
+    .login-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:40px; width:380px; text-align:center; }
+    .login-logo { width:48px; height:48px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border-radius:12px; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .login-title { font-size:22px; font-weight:700; margin-bottom:6px; }
+    .login-sub { color:var(--text-dim); font-size:14px; margin-bottom:28px; }
+    .login-input { width:100%; padding:12px 16px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:var(--font); font-size:15px; margin-bottom:14px; outline:none; transition:border-color .2s; }
+    .login-input:focus { border-color:var(--accent); }
+    .login-input::placeholder { color:var(--text-dim); }
+    .login-btn { width:100%; padding:12px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:10px; color:#fff; font-family:var(--font); font-size:15px; font-weight:600; cursor:pointer; transition:opacity .2s; }
+    .login-btn:hover { opacity:.9; }
+    .login-error { color:var(--red); font-size:13px; margin-top:10px; display:none; }
 
-    /* ── Login Screen ─────────────────────────────────────────── */
-    #loginScreen {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background: radial-gradient(ellipse at 50% 0%, rgba(124,106,247,0.15) 0%, transparent 60%);
-    }
+    /* Dashboard */
+    #dashboard { display:none; }
+    .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:16px 28px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+    .topbar-brand { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700; }
+    .topbar-logo { width:32px; height:32px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+    .content { max-width:1200px; margin:0 auto; padding:28px; }
 
-    .login-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 40px;
-      width: 380px;
-      text-align: center;
-    }
+    /* Stats */
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .stat-label { font-size:12px; color:var(--text-dim); font-weight:500; text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+    .stat-value { font-size:28px; font-weight:700; }
 
-    .login-logo {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 12px;
-      margin: 0 auto 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-    }
+    /* Section */
+    .section-title { font-size:14px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px; }
 
-    .login-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-    .login-sub { color: var(--text-dim); font-size: 14px; margin-bottom: 28px; }
+    /* Form */
+    .create-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:28px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr 140px 180px; gap:12px; margin-bottom:12px; }
+    .form-group label { display:block; font-size:12px; font-weight:500; color:var(--text-dim); margin-bottom:6px; }
+    .form-input { width:100%; padding:10px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--font); font-size:14px; outline:none; transition:border-color .2s; }
+    .form-input:focus { border-color:var(--accent); }
+    .form-input::placeholder { color:var(--text-dim); }
 
-    .login-input {
-      width: 100%;
-      padding: 12px 16px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 15px;
-      margin-bottom: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .login-input:focus { border-color: var(--accent); }
-    .login-input::placeholder { color: var(--text-dim); }
+    /* Buttons */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-family:var(--font); font-size:13px; font-weight:500; cursor:pointer; border:none; transition:opacity .15s,transform .1s; }
+    .btn:active { transform:scale(.97); }
+    .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; }
+    .btn-primary:hover { opacity:.9; }
+    .btn-danger { background:rgba(239,68,68,.15); color:var(--red); border:1px solid rgba(239,68,68,.3); }
+    .btn-danger:hover { background:rgba(239,68,68,.25); }
+    .btn-success { background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); }
+    .btn-success:hover { background:rgba(34,197,94,.25); }
+    .btn-ghost { background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--border); }
+    .btn-ghost:hover { background:rgba(255,255,255,.1); }
+    .btn-sm { padding:5px 10px; font-size:12px; }
+    .btn-key { background:rgba(124,106,247,.15); color:var(--accent); border:1px solid rgba(124,106,247,.3); }
+    .btn-key:hover { background:rgba(124,106,247,.25); }
 
-    .login-btn {
-      width: 100%;
-      padding: 12px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-family: var(--font);
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    .login-btn:hover { opacity: 0.9; }
-    .login-btn:active { transform: scale(0.98); }
+    /* Key result */
+    .key-result { display:none; margin-top:16px; background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25); border-radius:10px; padding:16px; align-items:center; justify-content:space-between; }
+    .key-result.show { display:flex; }
+    .key-value { font-family:var(--mono); font-size:18px; font-weight:600; color:var(--green); letter-spacing:.05em; }
 
-    .login-error {
-      color: var(--red);
-      font-size: 13px;
-      margin-top: 10px;
-      display: none;
-    }
+    /* Table */
+    .table-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:28px; }
+    .table-header { display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid var(--border); }
+    .search-input { padding:8px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--font); font-size:13px; outline:none; width:260px; }
+    .search-input:focus { border-color:var(--accent); }
+    table { width:100%; border-collapse:collapse; }
+    th { padding:10px 16px; text-align:left; font-size:11px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid var(--border); background:rgba(255,255,255,.02); }
+    td { padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.04); font-size:13px; vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,.02); }
+    .key-cell { font-family:var(--mono); font-size:12px; color:var(--accent); }
+    .dim { color:var(--text-dim); }
+    .status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+    .status-active { background:rgba(34,197,94,.12); color:var(--green); }
+    .status-revoked { background:rgba(239,68,68,.12); color:var(--red); }
+    .status-expired { background:rgba(245,158,11,.12); color:var(--yellow); }
+    .status-dot { width:5px; height:5px; border-radius:50%; background:currentColor; }
+    .actions-cell { display:flex; gap:6px; flex-wrap:wrap; }
 
-    /* ── Dashboard ─────────────────────────────────────────────── */
-    #dashboard { display: none; }
+    /* API key badge */
+    .key-count-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(124,106,247,.12); color:var(--accent); border:1px solid rgba(124,106,247,.25); }
+    .key-count-badge.empty { background:rgba(239,68,68,.08); color:var(--red); border-color:rgba(239,68,68,.2); }
 
-    .topbar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
+    /* Danger zone */
+    .danger-zone { background:rgba(239,68,68,.06); border:1px solid rgba(239,68,68,.2); border-radius:14px; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; }
+    .danger-title { font-size:15px; font-weight:600; color:var(--red); margin-bottom:4px; }
+    .danger-desc { font-size:13px; color:var(--text-dim); }
 
-    .topbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 18px;
-      font-weight: 700;
-    }
+    /* Toast */
+    .toast { position:fixed; bottom:24px; right:24px; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:500; z-index:9999; opacity:0; transform:translateY(8px); transition:all .25s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    .toast.success { background:#15803d; color:#fff; }
+    .toast.error { background:#b91c1c; color:#fff; }
+    .toast.info { background:#1d4ed8; color:#fff; }
 
-    .topbar-brand span {
-      background: linear-gradient(135deg, var(--accent), #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+    /* Modal backdrop */
+    .modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:9000; align-items:center; justify-content:center; }
+    .modal-backdrop.open { display:flex; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:560px; max-width:95vw; max-height:90vh; overflow-y:auto; }
+    .modal-title { font-size:17px; font-weight:700; margin-bottom:4px; }
+    .modal-sub { font-size:13px; color:var(--text-dim); margin-bottom:22px; }
+    .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
 
-    .topbar-badge {
-      background: rgba(124,106,247,0.2);
-      color: var(--accent);
-      border: 1px solid rgba(124,106,247,0.3);
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .logout-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-      border-radius: 8px;
-      padding: 7px 14px;
-      font-family: var(--font);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .logout-btn:hover { border-color: var(--red); color: var(--red); }
-
-    .main-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 32px 28px;
-    }
-
-    /* ── Stats Cards ────────────────────────────────────────────── */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-    .stat-value { font-size: 32px; font-weight: 700; font-family: var(--mono); }
-    .stat-value.green { color: var(--green); }
-    .stat-value.red { color: var(--red); }
-    .stat-value.yellow { color: var(--yellow); }
-    .stat-value.accent { color: var(--accent); }
-
-    /* ── Create Key Form ────────────────────────────────────────── */
-    .section-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .create-form {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 28px;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 120px 160px auto;
-      gap: 12px;
-      align-items: end;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 12px;
-      color: var(--text-dim);
-      margin-bottom: 6px;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 9px 12px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .form-input:focus { border-color: var(--accent); }
-    .form-input::placeholder { color: var(--text-dim); }
-
-    .btn {
-      padding: 9px 18px;
-      border-radius: 8px;
-      border: none;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff;
-    }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-
-    .btn-danger {
-      background: rgba(239,68,68,0.15);
-      color: var(--red);
-      border: 1px solid rgba(239,68,68,0.3);
-    }
-    .btn-danger:hover { background: rgba(239,68,68,0.25); }
-
-    .btn-success {
-      background: rgba(34,197,94,0.15);
-      color: var(--green);
-      border: 1px solid rgba(34,197,94,0.3);
-    }
-    .btn-success:hover { background: rgba(34,197,94,0.25); }
-
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-dim);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
-
-    /* ── Created Key Result ─────────────────────────────────────── */
-    .key-result {
-      margin-top: 16px;
-      padding: 14px 16px;
-      background: rgba(34,197,94,0.1);
-      border: 1px solid rgba(34,197,94,0.3);
-      border-radius: 8px;
-      display: none;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .key-result.show { display: flex; }
-
-    .key-value {
-      font-family: var(--mono);
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--green);
-      flex: 1;
-    }
-
-    /* ── Licenses Table ─────────────────────────────────────────── */
-    .table-wrapper {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .table-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .search-input {
-      padding: 8px 14px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 13px;
-      outline: none;
-      width: 220px;
-      transition: border-color 0.2s;
-    }
-    .search-input:focus { border-color: var(--accent); }
-    .search-input::placeholder { color: var(--text-dim); }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    thead th {
-      padding: 12px 20px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      background: var(--surface2);
-      border-bottom: 1px solid var(--border);
-    }
-
-    tbody tr {
-      border-bottom: 1px solid rgba(42,42,58,0.5);
-      transition: background 0.15s;
-    }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: rgba(124,106,247,0.04); }
-
-    tbody td {
-      padding: 14px 20px;
-      font-size: 13px;
-      vertical-align: middle;
-    }
-
-    .key-cell {
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--accent);
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .status-active {
-      background: rgba(34,197,94,0.15);
-      color: var(--green);
-      border: 1px solid rgba(34,197,94,0.3);
-    }
-
-    .status-revoked {
-      background: rgba(239,68,68,0.15);
-      color: var(--red);
-      border: 1px solid rgba(239,68,68,0.3);
-    }
-
-    .status-expired {
-      background: rgba(245,158,11,0.15);
-      color: var(--yellow);
-      border: 1px solid rgba(245,158,11,0.3);
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    .actions-cell {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .dim { color: var(--text-dim); }
-
-    /* ── Toast ──────────────────────────────────────────────────── */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 14px 20px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      transform: translateY(80px);
-      opacity: 0;
-      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
-      z-index: 9999;
-      max-width: 360px;
-    }
-    .toast.show { transform: translateY(0); opacity: 1; }
-    .toast.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: var(--green); }
-    .toast.error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: var(--red); }
-
-    /* ── Global Kill Button ─────────────────────────────────────── */
-    .danger-zone {
-      background: rgba(239,68,68,0.05);
-      border: 1px solid rgba(239,68,68,0.2);
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-top: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .danger-title { font-size: 15px; font-weight: 600; color: var(--red); margin-bottom: 4px; }
-    .danger-desc { font-size: 13px; color: var(--text-dim); }
-
-    .loading { opacity: 0.5; pointer-events: none; }
+    /* API keys list inside modal */
+    .api-keys-list { border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:20px; }
+    .api-key-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.05); gap:12px; }
+    .api-key-row:last-child { border-bottom:none; }
+    .api-key-label { font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:2px; }
+    .api-key-value { font-family:var(--mono); font-size:13px; color:var(--text); }
+    .api-key-add { display:flex; gap:10px; align-items:flex-end; }
+    .empty-keys { padding:24px; text-align:center; color:var(--text-dim); font-size:13px; }
 
     @media (max-width: 900px) {
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .form-row { grid-template-columns: 1fr 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .search-input { width: 180px; }
     }
   </style>
 </head>
 <body>
 
-<!-- ── Login Screen ───────────────────────────────────────────────────── -->
+<!-- ── Login Screen ───────────────────────────────────────────────────────── -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">🛡️</div>
+    <div class="login-logo">🤖</div>
     <div class="login-title">HaimuAI Admin</div>
     <div class="login-sub">Enter your admin password to continue</div>
-    <input type="password" class="login-input" id="adminPasswordInput" placeholder="Admin password" autocomplete="current-password">
-    <button class="login-btn" id="loginBtn" onclick="doLogin()">Access Dashboard</button>
+    <input class="login-input" id="adminPasswordInput" type="password" placeholder="Admin password" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
     <div class="login-error" id="loginError">Incorrect password. Try again.</div>
   </div>
 </div>
 
-<!-- ── Dashboard ──────────────────────────────────────────────────────── -->
+<!-- ── Dashboard ─────────────────────────────────────────────────────────── -->
 <div id="dashboard">
   <div class="topbar">
     <div class="topbar-brand">
-      🛡️ <span>HaimuAI</span> Admin
-      <div class="topbar-badge">ADMIN</div>
+      <div class="topbar-logo">🤖</div>
+      HaimuAI Admin
     </div>
-    <div style="display:flex;gap:12px;align-items:center">
+    <div style="display:flex;gap:10px;align-items:center">
       <button class="btn btn-ghost btn-sm" onclick="loadLicenses()">🔄 Refresh</button>
-      <button class="logout-btn" onclick="logout()">Sign Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
     </div>
   </div>
 
-  <div class="main-content">
-
+  <div class="content">
     <!-- Stats -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">Total Licenses</div>
-        <div class="stat-value accent" id="statTotal">—</div>
+        <div class="stat-value" id="statTotal">—</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Active</div>
-        <div class="stat-value green" id="statActive">—</div>
+        <div class="stat-value" style="color:var(--green)" id="statActive">—</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Revoked</div>
-        <div class="stat-value red" id="statRevoked">—</div>
+        <div class="stat-value" style="color:var(--red)" id="statRevoked">—</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Seen in 24h</div>
-        <div class="stat-value yellow" id="statRecent">—</div>
+        <div class="stat-label">Online (24h)</div>
+        <div class="stat-value" style="color:var(--accent)" id="statRecent">—</div>
       </div>
     </div>
 
-    <!-- API Key Pool Health -->
-    <div class="section-title">🔑 Gemini API Key Pool</div>
-    <div id="keyPoolPanel" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:28px">
-      <div style="color:var(--text-dim);font-size:13px;padding:16px">Loading key status...</div>
-    </div>
-
-    <!-- Create Key -->
+    <!-- Create License -->
     <div class="section-title">➕ Create New License Key</div>
-    <div class="create-form">
-      <div class="form-row">
+    <div class="create-card">
+      <div class="form-grid">
         <div class="form-group">
           <label>User Email (optional)</label>
           <input class="form-input" id="newEmail" type="email" placeholder="user@email.com">
@@ -522,24 +202,15 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Expires (leave blank = never)</label>
+          <label>Expires (blank = never)</label>
           <input class="form-input" id="newExpiry" type="date">
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:3">
-          <label>🔑 Gemini API Key <span style="color:var(--red)">*Required</span></label>
-          <input class="form-input" id="newGeminiKey" type="text" placeholder="AIzaSy..." style="font-family:var(--mono);font-size:13px">
-        </div>
-        <div class="form-group" style="flex:0;min-width:160px">
-          <label>&nbsp;</label>
-          <button class="btn btn-primary" onclick="createKey()">Generate Key</button>
-        </div>
-      </div>
+      <button class="btn btn-primary" onclick="createKey()">⚡ Generate License Key</button>
 
       <div class="key-result" id="keyResult">
         <div>
-          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px">New License Key — copy and send to user</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px">New License Key — copy and share with user</div>
           <div class="key-value" id="newKeyDisplay"></div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="copyKey()">📋 Copy</button>
@@ -547,7 +218,7 @@
     </div>
 
     <!-- Licenses Table -->
-    <div class="table-wrapper">
+    <div class="table-card">
       <div class="table-header">
         <div class="section-title" style="margin:0">📋 All Licenses</div>
         <input class="search-input" id="searchInput" placeholder="🔍 Search by key, email, name..." oninput="filterTable()">
@@ -561,7 +232,7 @@
             <th>Status</th>
             <th>Last Seen</th>
             <th>Usage</th>
-            <th>Gemini Key</th>
+            <th>API Keys</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -575,27 +246,46 @@
     <div class="danger-zone">
       <div>
         <div class="danger-title">☠️ Global Kill Switch</div>
-        <div class="danger-desc">Instantly revoke ALL active licenses. All running apps will shut down at next heartbeat.</div>
+        <div class="danger-desc">Instantly revoke ALL active licenses. All running apps will shut down within 30 seconds.</div>
       </div>
       <button class="btn btn-danger" onclick="globalKill()">Kill All Sessions</button>
     </div>
-
   </div>
 </div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- Set Gemini Key Modal -->
-<div id="setKeyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:480px;max-width:90vw">
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px">🔑 Set Gemini API Key</div>
-    <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px">License: <span id="setKeyModalLicense" style="font-family:var(--mono);color:var(--accent)"></span></div>
-    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px">Gemini API Key</label>
-    <input id="setKeyInput" class="form-input" type="text" placeholder="AIzaSy..." style="width:100%;font-family:var(--mono);font-size:13px;margin-bottom:16px" onkeydown="if(event.key==='Enter')saveGeminiKey()">
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="closeSetKeyModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveGeminiKey()">💾 Save Key</button>
+<!-- ── API Keys Modal ────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="apiKeysModal">
+  <div class="modal">
+    <div class="modal-title">🔑 Gemini API Keys</div>
+    <div class="modal-sub">License: <span id="modalLicenseKey" style="font-family:var(--mono);color:var(--accent)"></span></div>
+
+    <!-- Current keys list -->
+    <div id="apiKeysList">
+      <div class="empty-keys">Loading keys...</div>
+    </div>
+
+    <!-- Add new key -->
+    <div style="border-top:1px solid var(--border);padding-top:20px;margin-top:4px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">➕ Add New Gemini API Key</div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group">
+          <label>Label (optional)</label>
+          <input class="form-input" id="newKeyLabel" type="text" placeholder="e.g. Primary">
+        </div>
+        <div class="form-group">
+          <label>Gemini API Key</label>
+          <input class="form-input" id="newKeyValue" type="text" placeholder="AIzaSy..." style="font-family:var(--mono);font-size:13px"
+            onkeydown="if(event.key==='Enter') addApiKey()">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addApiKey()">Add Key</button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeApiKeysModal()">Close</button>
     </div>
   </div>
 </div>
@@ -603,10 +293,10 @@
 <script>
   let adminPassword = '';
   let allLicenses = [];
-
+  let currentModalLicense = null;
   const API = window.location.origin;
 
-  // ─── Login ────────────────────────────────────────────────────────────
+  // ── Login ──────────────────────────────────────────────────────────────────
   document.getElementById('adminPasswordInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') doLogin();
   });
@@ -614,22 +304,12 @@
   async function doLogin() {
     const pwd = document.getElementById('adminPasswordInput').value.trim();
     if (!pwd) return;
-
-    // Quick check by hitting the list endpoint
-    const res = await fetch(`${API}/api/license/list`, {
-      headers: { Authorization: `Bearer ${pwd}` }
-    });
-
-    if (res.status === 403) {
-      document.getElementById('loginError').style.display = 'block';
-      return;
-    }
-
+    const res = await fetch(`${API}/api/license/list`, { headers: { Authorization: `Bearer ${pwd}` } });
+    if (res.status === 403) { document.getElementById('loginError').style.display = 'block'; return; }
     adminPassword = pwd;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     loadLicenses();
-    loadKeyStatus();
   }
 
   function logout() {
@@ -639,306 +319,20 @@
     document.getElementById('adminPasswordInput').value = '';
   }
 
-  // ─── Load Licenses ────────────────────────────────────────────────────
+  // ── Load & Render Licenses ────────────────────────────────────────────────
   async function loadLicenses() {
-    const res = await fetch(`${API}/api/license/list`, {
-      headers: { Authorization: `Bearer ${adminPassword}` }
-    });
+    const res = await fetch(`${API}/api/license/list`, { headers: { Authorization: `Bearer ${adminPassword}` } });
     const data = await res.json();
     allLicenses = data.licenses || [];
     renderTable(allLicenses);
     updateStats(allLicenses);
   }
 
-  // ─── Key Pool Status ──────────────────────────────────────────────────
-  async function loadKeyStatus() {
-    try {
-      const res = await fetch(`${API}/api/ai/keys/status`, {
-        headers: { Authorization: `Bearer ${adminPassword}` }
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const panel = document.getElementById('keyPoolPanel');
-      panel.innerHTML = data.keys.map(k => {
-        const isActive = k.status === 'active';
-        const bg = isActive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
-        const border = isActive ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)';
-        const dot = isActive ? '🟢' : '🔴';
-        const sub = isActive
-          ? '<span style="color:var(--green);font-size:11px">Available</span>'
-          : `<span style="color:var(--red);font-size:11px">Cooldown: ${k.cooldownRemainingMins}m left</span>`;
-        return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:14px 16px">
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px">${dot} Key #${k.index}</div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:6px">...${k.keyPreview}</div>
-          ${sub}
-        </div>`;
-      }).join('');
-      // Add total count header
-      panel.insertAdjacentHTML('afterbegin',
-        `<div style="grid-column:1/-1;font-size:13px;color:var(--text-dim);margin-bottom:4px">
-          ${data.totalKeys} key${data.totalKeys !== 1 ? 's' : ''} configured —
-          ${data.keys.filter(k=>k.status==='active').length} active,
-          ${data.keys.filter(k=>k.status==='exhausted').length} in cooldown
-          <button class="btn btn-ghost btn-sm" style="float:right" onclick="loadKeyStatus()">🔄</button>
-        </div>`);
-    } catch (e) {
-      console.warn('Could       const lastSeen = l.last_seen ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
-      const geminiKeyDisplay = l.gemini_api_key
-        ? `<span style="font-family:var(--mono);font-size:11px;color:var(--green)">${l.gemini_api_key}</span>`
-        : `<span style="color:var(--red);font-size:11px">⚠ Not set</span>`;
-
-      return `<tr data-key="${l.key}" data-email="${l.user_email||''}" data-name="${l.user_name||\''}">
-        <td class="key-cell">${l.key}</td>
-        <td>
-          <div style="font-weight:500">${l.user_name || '<span class="dim">—</span>'}</div>
-          <div style="font-size:12px;color:var(--text-dim)">${l.user_email || ''}</div>
-        </td>
-        <td><span style="text-transform:capitalize">${l.plan || 'basic'}</span></td>
-        <td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${statusLabel}</span></td>
-        <td>${lastSeen}</td>
-        <td style="font-family:var(--mono)">${(l.usage_count||0).toLocaleString()}</td>
-        <td>${geminiKeyDisplay}</td>
-        <td>
-          <div class="actions-cell">
-            ${l.active
-              ? `<button class="btn btn-danger btn-sm" onclick="revokeKey('${l.key}')">Revoke</button>`
-              : `<button class="btn btn-success btn-sm" onclick="restoreKey('${l.key}')">Restore</button>`
-            }
-            <button class="btn btn-ghost btn-sm" onclick="openSetKeyModal('${l.key}')" title="Set Gemini API key">🔑 Key</button>
-            <button class="btn btn-ghost btn-sm" onclick="resetHwid('${l.key}')" title="Reset machine lock">🖥️ Reset</button>
-          </div>
-        </td>
-      </tr>`;
-een ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
-      const expires = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : '<span class="dim">Never</span>';
-
-      return `<tr data-key="${l.key}" data-email="${l.user_email||''}" data-name="${l.user_name||''}">
-        <td class="key-cell">${l.key}</td>
-        <td>
-          <div style="font-weight:500">${l.user_name || '<span class="dim">—</span>'}</div>
-          <div style="font-size:12px;color:var(--text-dim)">${l.user_email || ''}</div>
-        </td>
-        <td><span style="text-transform:capitalize">${l.plan || 'basic'}</span></td>
-        <td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${statusLabel}</span></td>
-        <td>${lastSeen}</td>
-        <td style="font-family:var(--mono)">${(l.usage_count||0).toLocaleString()}</td>
-        <td>${expires}</td>
-        <td>
-          <div class="actions-cell">
-            ${l.active
-              ? `<button class="btn btn-danger btn-sm" onclick="revokeKey('${l.key}')">Revoke</button>`
-              : `<button class="btn btn-success btn-sm" onclick="restoreKey('${l.key}')">Restore</button>`
-            }
-            <button class="btn btn-ghost btn-sm" onclick="resetHwid('${l.key}')" title="Reset machine lock">🖥️ Reset</button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-  }
-
-  function filterTable() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    const rows = document.querySelectorAll('#licensesBody tr[data-key]');
-    rows.forEach(row => {
-      const text = (row.dataset.key + row.dataset.email + row.dataset.name).toLowerCase();
-      row.style.display = text.includes(q) ? '' : 'none';
-    });
-  }
-
-  // ─── Key Actions ──────────────────────────────────────────────────────
-  async function createKey() {
-    const email = document.getElementById('newEmail').value.trim();
-    const name = document.getElementById('newName').value.trim();
-    const plan = document.getElementById('newPlan').value;
-    const expiry = document.getElementById('newExpiry').value;
-    const geminiApiKey = document.getElementById('newGeminiKey').value.trim();
-
-    if (!geminiApiKey) {
-      showToast('⚠️ Gemini API Key is required!', 'error');
-      document.getElementById('newGeminiKey').focus();
-      return;
-    }
-
-    const res = await fetch(`${API}/api/license/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-      body: JSON.stringify({ userEmail: email || null, userName: name || null, plan, expiresAt: expiry || null, geminiApiKey }),
-    });
-
-    const data = await res.json();
-    if (data.success) {
-      const keyResult = document.getElementById('keyResult');
-      document.getElementById('newKeyDisplay').textContent = data.license.key;
-      keyResult.classList.add('show');
-      document.getElementById('newGeminiKey').value = '';
-      showToast(`Key created: ${data.license.key}`, 'success');
-      loadLicenses();
-    } else {
-      showToast('Failed to create key: ' + data.error, 'error');
-    }
-  }
-
-  // ─── Set Gemini Key Modal ─────────────────────────────────────────────
-  let _setKeyTarget = null;
-  function openSetKeyModal(licenseKey) {
-    _setKeyTarget = licenseKey;
-    document.getElementById('setKeyModalLicense').textContent = licenseKey;
-    document.getElementById('setKeyInput').value = '';
-    document.getElementById('setKeyModal').style.display = 'flex';
-    setTimeout(() => document.getElementById('setKeyInput').focus(), 100);
-  }
-  function closeSetKeyModal() {
-    document.getElementById('setKeyModal').style.display = 'none';
-    _setKeyTarget = null;
-  }
-  async function saveGeminiKey() {
-    const geminiApiKey = document.getElementById('setKeyInput').value.trim();
-    if (!geminiApiKey) { showToast('Enter a Gemini API key', 'error'); return; }
-    const res = await fetch(`${API}/api/license/set-gemini-key`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-      body: JSON.stringify({ key: _setKeyTarget, geminiApiKey }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`✅ Gemini key updated for ${_setKeyTarget}`, 'success');
-      closeSetKeyModal();
-      loadLicenses();
-    } else {
-      showToast('Failed: ' + data.error, 'error');
-    }
-  }
-
-  function copyKey() {
-    const key = document.getElementById('newKeyDisplay').textContent;
-    navigator.clipboard.writeText(key);
-    showToast('Key copied to clipboard!', 'success');
-  }
-
-  async function revokeKey(key) {
-    if (!confirm(`Revoke license ${key}? The user's app will shut down within 5 minutes.`)) return;
-    const res = await fetch(`${API}/api/license/revoke`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-      body: JSON.stringify({ key }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`License ${key} revoked ✓`, 'success');
-      loadLicenses();
-    } else {
-      showToast('Failed: ' + data.error, 'error');
-    }
-  }
-
-  async function restoreKey(key) {
-    const res = await fetch(`${API}/api/license/restore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-      body: JSON.stringify({ key }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`License ${key} restored ✓`, 'success');
-      loadLicenses();
-    } else {
-      showToast('Failed: ' + data.error, 'error');
-    }
-  }
-
-  async function resetHwid(key) {
-    if (!confirm(`Reset machine lock for ${key}? User can activate on a new computer.`)) return;
-    const res = await fetch(`${API}/api/license/reset-hwid`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-      body: JSON.stringify({ key }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`HWID reset for ${key} ✓`, 'success');
-    } else {
-      showToast('Failed: ' + data.error, 'error');
-    }
-  }
-
-  async function globalKill() {
-    if (!confirm('⚠️ GLOBAL KILL: This will revoke ALL active licenses immediately. Are you absolutely sure?')) return;
-    if (!confirm('Second confirmation: ALL users will be disconnected within 5 minutes. Continue?')) return;
-
-    const actives = allLicenses.filter(l => l.active);
-    let count = 0;
-    for (const l of actives) {
-      await fetch(`${API}/api/license/revoke`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-        body: JSON.stringify({ key: l.key }),
-      });
-      count++;
-    }
-
-    showToast(`Global kill complete. ${count} licenses revoked.`, 'success');
-    loadLicenses();
-  }
-
-  // ─── Utils ───────────────────────────────────────────────────────────
-  function timeAgo(date) {
-    const diff = Date.now() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return '<span style="color:var(--green)">Just now</span>';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs/24)}d ago`;
-  }
-
-  function showToast(msg, type = 'success') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = `toast ${type} show`;
-    setTimeout(() => t.classList.remove('show'), 3500);
-  }
-</script>
-</body>
-</html>
-
-  // --- Key Pool Status ---
-  async function loadKeyStatus() {
-    try {
-      const res = await fetch(`${API}/api/ai/keys/status`, {
-        headers: { Authorization: `Bearer ${adminPassword}` }
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const panel = document.getElementById('keyPoolPanel');
-      panel.innerHTML = data.keys.map(k => {
-        const hasKey = k.hasGeminiKey;
-        const isActive = k.active && hasKey;
-        const bg = isActive ? 'rgba(34,197,94,0.08)' : hasKey ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)';
-        const border = isActive ? 'rgba(34,197,94,0.25)' : hasKey ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)';
-        const dot = isActive ? 'GREEN' : hasKey ? 'RED' : 'YELLOW';
-        const sub = isActive
-          ? '<span style="color:var(--green);font-size:11px">Active</span>'
-          : hasKey
-            ? '<span style="color:var(--red);font-size:11px">Revoked</span>'
-            : '<span style="color:var(--yellow);font-size:11px">No API key set</span>';
-        return '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:10px;padding:14px 16px"><div style="font-size:13px;font-weight:600;margin-bottom:4px">' + dot + ' ' + (k.userEmail || k.licenseKey.slice(-8)) + '</div><div style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:6px">' + k.keyPreview + '</div>' + sub + '</div>';
-      }).join('');
-      panel.insertAdjacentHTML('afterbegin',
-        '<div style="grid-column:1/-1;font-size:13px;color:var(--text-dim);margin-bottom:4px">' +
-        data.totalLicenses + ' license' + (data.totalLicenses !== 1 ? 's' : '') + ' &mdash; ' +
-        data.keys.filter(k=>k.active && k.hasGeminiKey).length + ' active with Gemini keys' +
-        '<button class="btn btn-ghost btn-sm" style="float:right" onclick="loadKeyStatus()">Reload</button></div>');
-    } catch (e) { console.warn('Could not load key status:', e); }
-  }
-
   function updateStats(licenses) {
     const now = new Date();
     const active = licenses.filter(l => l.active && (!l.expires_at || new Date(l.expires_at) > now)).length;
     const revoked = licenses.filter(l => !l.active).length;
-    const recent = licenses.filter(l => {
-      if (!l.last_seen) return false;
-      return (now - new Date(l.last_seen)) < 24 * 60 * 60 * 1000;
-    }).length;
+    const recent = licenses.filter(l => l.last_seen && (now - new Date(l.last_seen)) < 86400000).length;
     document.getElementById('statTotal').textContent = licenses.length;
     document.getElementById('statActive').textContent = active;
     document.getElementById('statRevoked').textContent = revoked;
@@ -957,742 +351,12 @@ een ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
       let statusClass = 'status-active', statusLabel = 'Active';
       if (!l.active) { statusClass = 'status-revoked'; statusLabel = 'Revoked'; }
       else if (isExpired) { statusClass = 'status-expired'; statusLabel = 'Expired'; }
+
       const lastSeen = l.last_seen ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
-      const geminiKeyDisplay = l.gemini_api_key
-        ? '<span style="font-family:var(--mono);font-size:11px;color:var(--green)">' + l.gemini_api_key + '</span>'
-        : '<span style="color:var(--red);font-size:11px">Not set</span>';
-      return '<tr data-key="' + l.key + '" data-email="' + (l.user_email||'') + '" data-name="' + (l.user_name||'') + '">' +
-        '<td class="key-cell">' + l.key + '</td>' +
-        '<td><div style="font-weight:500">' + (l.user_name || '<span class="dim">-</span>') + '</div>' +
-        '<div style="font-size:12px;color:var(--text-dim)">' + (l.user_email || '') + '</div></td>' +
-        '<td><span style="text-transform:capitalize">' + (l.plan || 'basic') + '</span></td>' +
-        '<td><span class="status-badge ' + statusClass + '"><span class="status-dot"></span>' + statusLabel + '</span></td>' +
-        '<td>' + lastSeen + '</td>' +
-        '<td style="font-family:var(--mono)">' + (l.usage_count||0).toLocaleString() + '</td>' +
-        '<td>' + geminiKeyDisplay + '</td>' +
-        '<td><div class="actions-cell">' +
-        (l.active
-          ? '<button class="btn btn-danger btn-sm" onclick="revokeKey(\'' + l.key + '\')">Revoke</button>'
-          : '<button class="btn btn-success btn-sm" onclick="restoreKey(\'' + l.key + '\')">Restore</button>') +
-        '<button class="btn btn-ghost btn-sm" onclick="openSetKeyModal(\'' + l.key + '\')" title="Set Gemini API key">Set Key</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="resetHwid(\'' + l.key + '\')" title="Reset machine lock">Reset</button>' +
-        '</div></td></tr>';
-    }).join('');
-  }
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HaimuAI — Admin Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0a0a0f;
-      --surface: #12121a;
-      --surface2: #1a1a26;
-      --border: #2a2a3a;
-      --accent: #7c6af7;
-      --accent2: #5b4fd4;
-      --green: #22c55e;
-      --red: #ef4444;
-      --yellow: #f59e0b;
-      --text: #e8e8f0;
-      --text-dim: #7a7a9a;
-      --font: 'Inter', sans-serif;
-      --mono: 'JetBrains Mono', monospace;
-    }
-
-    body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
-
-    /* ── Login Screen ─────────────────────────────────────────── */
-    #loginScreen {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background: radial-gradient(ellipse at 50% 0%, rgba(124,106,247,0.15) 0%, transparent 60%);
-    }
-
-    .login-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 40px;
-      width: 380px;
-      text-align: center;
-    }
-
-    .login-logo {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 12px;
-      margin: 0 auto 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-    }
-
-    .login-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-    .login-sub { color: var(--text-dim); font-size: 14px; margin-bottom: 28px; }
-
-    .login-input {
-      width: 100%;
-      padding: 12px 16px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 15px;
-      margin-bottom: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .login-input:focus { border-color: var(--accent); }
-    .login-input::placeholder { color: var(--text-dim); }
-
-    .login-btn {
-      width: 100%;
-      padding: 12px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-family: var(--font);
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    .login-btn:hover { opacity: 0.9; }
-    .login-btn:active { transform: scale(0.98); }
-
-    .login-error {
-      color: var(--red);
-      font-size: 13px;
-      margin-top: 10px;
-      display: none;
-    }
-
-    /* ── Dashboard ─────────────────────────────────────────────── */
-    #dashboard { display: none; }
-
-    .topbar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .topbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .topbar-brand span {
-      background: linear-gradient(135deg, var(--accent), #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .topbar-badge {
-      background: rgba(124,106,247,0.2);
-      color: var(--accent);
-      border: 1px solid rgba(124,106,247,0.3);
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .logout-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-      border-radius: 8px;
-      padding: 7px 14px;
-      font-family: var(--font);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .logout-btn:hover { border-color: var(--red); color: var(--red); }
-
-    .main-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 32px 28px;
-    }
-
-    /* ── Stats Cards ────────────────────────────────────────────── */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-    .stat-value { font-size: 32px; font-weight: 700; font-family: var(--mono); }
-    .stat-value.green { color: var(--green); }
-    .stat-value.red { color: var(--red); }
-    .stat-value.yellow { color: var(--yellow); }
-    .stat-value.accent { color: var(--accent); }
-
-    /* ── Create Key Form ────────────────────────────────────────── */
-    .section-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .create-form {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 28px;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 120px 160px auto;
-      gap: 12px;
-      align-items: end;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 12px;
-      color: var(--text-dim);
-      margin-bottom: 6px;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 9px 12px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .form-input:focus { border-color: var(--accent); }
-    .form-input::placeholder { color: var(--text-dim); }
-
-    .btn {
-      padding: 9px 18px;
-      border-radius: 8px;
-      border: none;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff;
-    }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-
-    .btn-danger {
-      background: rgba(239,68,68,0.15);
-      color: var(--red);
-      border: 1px solid rgba(239,68,68,0.3);
-    }
-    .btn-danger:hover { background: rgba(239,68,68,0.25); }
-
-    .btn-success {
-      background: rgba(34,197,94,0.15);
-      color: var(--green);
-      border: 1px solid rgba(34,197,94,0.3);
-    }
-    .btn-success:hover { background: rgba(34,197,94,0.25); }
-
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-dim);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
-
-    /* ── Created Key Result ─────────────────────────────────────── */
-    .key-result {
-      margin-top: 16px;
-      padding: 14px 16px;
-      background: rgba(34,197,94,0.1);
-      border: 1px solid rgba(34,197,94,0.3);
-      border-radius: 8px;
-      display: none;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .key-result.show { display: flex; }
-
-    .key-value {
-      font-family: var(--mono);
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--green);
-      flex: 1;
-    }
-
-    /* ── Licenses Table ─────────────────────────────────────────── */
-    .table-wrapper {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .table-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .search-input {
-      padding: 8px 14px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 13px;
-      outline: none;
-      width: 220px;
-      transition: border-color 0.2s;
-    }
-    .search-input:focus { border-color: var(--accent); }
-    .search-input::placeholder { color: var(--text-dim); }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    thead th {
-      padding: 12px 20px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      background: var(--surface2);
-      border-bottom: 1px solid var(--border);
-    }
-
-    tbody tr {
-      border-bottom: 1px solid rgba(42,42,58,0.5);
-      transition: background 0.15s;
-    }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: rgba(124,106,247,0.04); }
-
-    tbody td {
-      padding: 14px 20px;
-      font-size: 13px;
-      vertical-align: middle;
-    }
-
-    .key-cell {
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--accent);
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .status-active {
-      background: rgba(34,197,94,0.15);
-      color: var(--green);
-      border: 1px solid rgba(34,197,94,0.3);
-    }
-
-    .status-revoked {
-      background: rgba(239,68,68,0.15);
-      color: var(--red);
-      border: 1px solid rgba(239,68,68,0.3);
-    }
-
-    .status-expired {
-      background: rgba(245,158,11,0.15);
-      color: var(--yellow);
-      border: 1px solid rgba(245,158,11,0.3);
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    .actions-cell {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .dim { color: var(--text-dim); }
-
-    /* ── Toast ──────────────────────────────────────────────────── */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 14px 20px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      transform: translateY(80px);
-      opacity: 0;
-      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
-      z-index: 9999;
-      max-width: 360px;
-    }
-    .toast.show { transform: translateY(0); opacity: 1; }
-    .toast.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: var(--green); }
-    .toast.error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: var(--red); }
-
-    /* ── Global Kill Button ─────────────────────────────────────── */
-    .danger-zone {
-      background: rgba(239,68,68,0.05);
-      border: 1px solid rgba(239,68,68,0.2);
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-top: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .danger-title { font-size: 15px; font-weight: 600; color: var(--red); margin-bottom: 4px; }
-    .danger-desc { font-size: 13px; color: var(--text-dim); }
-
-    .loading { opacity: 0.5; pointer-events: none; }
-
-    @media (max-width: 900px) {
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .form-row { grid-template-columns: 1fr 1fr; }
-    }
-  </style>
-</head>
-<body>
-
-<!-- ── Login Screen ───────────────────────────────────────────────────── -->
-<div id="loginScreen">
-  <div class="login-card">
-    <div class="login-logo">🛡️</div>
-    <div class="login-title">HaimuAI Admin</div>
-    <div class="login-sub">Enter your admin password to continue</div>
-    <input type="password" class="login-input" id="adminPasswordInput" placeholder="Admin password" autocomplete="current-password">
-    <button class="login-btn" id="loginBtn" onclick="doLogin()">Access Dashboard</button>
-    <div class="login-error" id="loginError">Incorrect password. Try again.</div>
-  </div>
-</div>
-
-<!-- ── Dashboard ──────────────────────────────────────────────────────── -->
-<div id="dashboard">
-  <div class="topbar">
-    <div class="topbar-brand">
-      🛡️ <span>HaimuAI</span> Admin
-      <div class="topbar-badge">ADMIN</div>
-    </div>
-    <div style="display:flex;gap:12px;align-items:center">
-      <button class="btn btn-ghost btn-sm" onclick="loadLicenses()">🔄 Refresh</button>
-      <button class="logout-btn" onclick="logout()">Sign Out</button>
-    </div>
-  </div>
-
-  <div class="main-content">
-
-    <!-- Stats -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Licenses</div>
-        <div class="stat-value accent" id="statTotal">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Active</div>
-        <div class="stat-value green" id="statActive">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Revoked</div>
-        <div class="stat-value red" id="statRevoked">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Seen in 24h</div>
-        <div class="stat-value yellow" id="statRecent">—</div>
-      </div>
-    </div>
-
-    <!-- API Key Pool Health -->
-    <div class="section-title">🔑 Gemini API Key Pool</div>
-    <div id="keyPoolPanel" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:28px">
-      <div style="color:var(--text-dim);font-size:13px;padding:16px">Loading key status...</div>
-    </div>
-
-    <!-- Create Key -->
-    <div class="section-title">➕ Create New License Key</div>
-    <div class="create-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label>User Email (optional)</label>
-          <input class="form-input" id="newEmail" type="email" placeholder="user@email.com">
-        </div>
-        <div class="form-group">
-          <label>User Name (optional)</label>
-          <input class="form-input" id="newName" type="text" placeholder="John Doe">
-        </div>
-        <div class="form-group">
-          <label>Plan</label>
-          <select class="form-input" id="newPlan">
-            <option value="basic">Basic</option>
-            <option value="pro">Pro</option>
-            <option value="lifetime">Lifetime</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Expires (leave blank = never)</label>
-          <input class="form-input" id="newExpiry" type="date">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:3">
-          <label>🔑 Gemini API Key <span style="color:var(--red)">*Required</span></label>
-          <input class="form-input" id="newGeminiKey" type="text" placeholder="AIzaSy..." style="font-family:var(--mono);font-size:13px">
-        </div>
-        <div class="form-group" style="flex:0;min-width:160px">
-          <label>&nbsp;</label>
-          <button class="btn btn-primary" onclick="createKey()">Generate Key</button>
-        </div>
-      </div>
-
-      <div class="key-result" id="keyResult">
-        <div>
-          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px">New License Key — copy and send to user</div>
-          <div class="key-value" id="newKeyDisplay"></div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="copyKey()">📋 Copy</button>
-      </div>
-    </div>
-
-    <!-- Licenses Table -->
-    <div class="table-wrapper">
-      <div class="table-header">
-        <div class="section-title" style="margin:0">📋 All Licenses</div>
-        <input class="search-input" id="searchInput" placeholder="🔍 Search by key, email, name..." oninput="filterTable()">
-      </div>
-      <table id="licensesTable">
-        <thead>
-          <tr>
-            <th>License Key</th>
-            <th>User</th>
-            <th>Plan</th>
-            <th>Status</th>
-            <th>Last Seen</th>
-            <th>Usage</th>
-            <th>Gemini Key</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="licensesBody">
-          <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-dim)">Loading licenses...</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Danger Zone -->
-    <div class="danger-zone">
-      <div>
-        <div class="danger-title">☠️ Global Kill Switch</div>
-        <div class="danger-desc">Instantly revoke ALL active licenses. All running apps will shut down at next heartbeat.</div>
-      </div>
-      <button class="btn btn-danger" onclick="globalKill()">Kill All Sessions</button>
-    </div>
-
-  </div>
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<!-- Set Gemini Key Modal -->
-<div id="setKeyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:480px;max-width:90vw">
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px">🔑 Set Gemini API Key</div>
-    <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px">License: <span id="setKeyModalLicense" style="font-family:var(--mono);color:var(--accent)"></span></div>
-    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px">Gemini API Key</label>
-    <input id="setKeyInput" class="form-input" type="text" placeholder="AIzaSy..." style="width:100%;font-family:var(--mono);font-size:13px;margin-bottom:16px" onkeydown="if(event.key==='Enter')saveGeminiKey()">
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="closeSetKeyModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveGeminiKey()">💾 Save Key</button>
-    </div>
-  </div>
-</div>
-
-<script>
-  let adminPassword = '';
-  let allLicenses = [];
-
-  const API = window.location.origin;
-
-  // ─── Login ────────────────────────────────────────────────────────────
-  document.getElementById('adminPasswordInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
-
-  async function doLogin() {
-    const pwd = document.getElementById('adminPasswordInput').value.trim();
-    if (!pwd) return;
-
-    // Quick check by hitting the list endpoint
-    const res = await fetch(`${API}/api/license/list`, {
-      headers: { Authorization: `Bearer ${pwd}` }
-    });
-
-    if (res.status === 403) {
-      document.getElementById('loginError').style.display = 'block';
-      return;
-    }
-
-    adminPassword = pwd;
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    loadLicenses();
-    loadKeyStatus();
-  }
-
-  function logout() {
-    adminPassword = '';
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('adminPasswordInput').value = '';
-  }
-
-  // ─── Load Licenses ────────────────────────────────────────────────────
-  async function loadLicenses() {
-    const res = await fetch(`${API}/api/license/list`, {
-      headers: { Authorization: `Bearer ${adminPassword}` }
-    });
-    const data = await res.json();
-    allLicenses = data.licenses || [];
-    renderTable(allLicenses);
-    updateStats(allLicenses);
-  }
-
-  // ─── Key Pool Status ──────────────────────────────────────────────────
-  async function loadKeyStatus() {
-    try {
-      const res = await fetch(`${API}/api/ai/keys/status`, {
-        headers: { Authorization: `Bearer ${adminPassword}` }
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const panel = document.getElementById('keyPoolPanel');
-      panel.innerHTML = data.keys.map(k => {
-        const isActive = k.status === 'active';
-        const bg = isActive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
-        const border = isActive ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)';
-        const dot = isActive ? '🟢' : '🔴';
-        const sub = isActive
-          ? '<span style="color:var(--green);font-size:11px">Available</span>'
-          : `<span style="color:var(--red);font-size:11px">Cooldown: ${k.cooldownRemainingMins}m left</span>`;
-        return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:14px 16px">
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px">${dot} Key #${k.index}</div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:6px">...${k.keyPreview}</div>
-          ${sub}
-        </div>`;
-      }).join('');
-      // Add total count header
-      panel.insertAdjacentHTML('afterbegin',
-        `<div style="grid-column:1/-1;font-size:13px;color:var(--text-dim);margin-bottom:4px">
-          ${data.totalKeys} key${data.totalKeys !== 1 ? 's' : ''} configured —
-          ${data.keys.filter(k=>k.status==='active').length} active,
-          ${data.keys.filter(k=>k.status==='exhausted').length} in cooldown
-          <button class="btn btn-ghost btn-sm" style="float:right" onclick="loadKeyStatus()">🔄</button>
-        </div>`);
-    } catch (e) {
-      console.warn('Could       const lastSeen = l.last_seen ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
-      const geminiKeyDisplay = l.gemini_api_key
-        ? `<span style="font-family:var(--mono);font-size:11px;color:var(--green)">${l.gemini_api_key}</span>`
-        : `<span style="color:var(--red);font-size:11px">⚠ Not set</span>`;
-
-      return `<tr data-key="${l.key}" data-email="${l.user_email||''}" data-name="${l.user_name||\''}">
-        <td class="key-cell">${l.key}</td>
-        <td>
-          <div style="font-weight:500">${l.user_name || '<span class="dim">—</span>'}</div>
-          <div style="font-size:12px;color:var(--text-dim)">${l.user_email || ''}</div>
-        </td>
-        <td><span style="text-transform:capitalize">${l.plan || 'basic'}</span></td>
-        <td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${statusLabel}</span></td>
-        <td>${lastSeen}</td>
-        <td style="font-family:var(--mono)">${(l.usage_count||0).toLocaleString()}</td>
-        <td>${geminiKeyDisplay}</td>
-        <td>
-          <div class="actions-cell">
-            ${l.active
-              ? `<button class="btn btn-danger btn-sm" onclick="revokeKey('${l.key}')">Revoke</button>`
-              : `<button class="btn btn-success btn-sm" onclick="restoreKey('${l.key}')">Restore</button>`
-            }
-            <button class="btn btn-ghost btn-sm" onclick="openSetKeyModal('${l.key}')" title="Set Gemini API key">🔑 Key</button>
-            <button class="btn btn-ghost btn-sm" onclick="resetHwid('${l.key}')" title="Reset machine lock">🖥️ Reset</button>
-          </div>
-        </td>
-      </tr>`;
-een ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
-      const expires = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : '<span class="dim">Never</span>';
+      const keyCount = l.api_key_count || 0;
+      const keyBadge = keyCount > 0
+        ? `<span class="key-count-badge">🔑 ${keyCount} key${keyCount > 1 ? 's' : ''}</span>`
+        : `<span class="key-count-badge empty">⚠ No keys</span>`;
 
       return `<tr data-key="${l.key}" data-email="${l.user_email||''}" data-name="${l.user_name||''}">
         <td class="key-cell">${l.key}</td>
@@ -1704,13 +368,14 @@ een ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
         <td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${statusLabel}</span></td>
         <td>${lastSeen}</td>
         <td style="font-family:var(--mono)">${(l.usage_count||0).toLocaleString()}</td>
-        <td>${expires}</td>
+        <td>${keyBadge}</td>
         <td>
           <div class="actions-cell">
             ${l.active
               ? `<button class="btn btn-danger btn-sm" onclick="revokeKey('${l.key}')">Revoke</button>`
               : `<button class="btn btn-success btn-sm" onclick="restoreKey('${l.key}')">Restore</button>`
             }
+            <button class="btn btn-key btn-sm" onclick="openApiKeysModal('${l.key}')">🔑 Keys</button>
             <button class="btn btn-ghost btn-sm" onclick="resetHwid('${l.key}')" title="Reset machine lock">🖥️ Reset</button>
           </div>
         </td>
@@ -1720,71 +385,30 @@ een ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
 
   function filterTable() {
     const q = document.getElementById('searchInput').value.toLowerCase();
-    const rows = document.querySelectorAll('#licensesBody tr[data-key]');
-    rows.forEach(row => {
+    document.querySelectorAll('#licensesBody tr[data-key]').forEach(row => {
       const text = (row.dataset.key + row.dataset.email + row.dataset.name).toLowerCase();
       row.style.display = text.includes(q) ? '' : 'none';
     });
   }
 
-  // ─── Key Actions ──────────────────────────────────────────────────────
+  // ── Create License ────────────────────────────────────────────────────────
   async function createKey() {
     const email = document.getElementById('newEmail').value.trim();
     const name = document.getElementById('newName').value.trim();
     const plan = document.getElementById('newPlan').value;
     const expiry = document.getElementById('newExpiry').value;
-    const geminiApiKey = document.getElementById('newGeminiKey').value.trim();
-
-    if (!geminiApiKey) {
-      showToast('⚠️ Gemini API Key is required!', 'error');
-      document.getElementById('newGeminiKey').focus();
-      return;
-    }
 
     const res = await fetch(`${API}/api/license/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-      body: JSON.stringify({ userEmail: email || null, userName: name || null, plan, expiresAt: expiry || null, geminiApiKey }),
+      body: JSON.stringify({ userEmail: email || null, userName: name || null, plan, expiresAt: expiry || null }),
     });
 
     const data = await res.json();
     if (data.success) {
-      const keyResult = document.getElementById('keyResult');
       document.getElementById('newKeyDisplay').textContent = data.license.key;
-      keyResult.classList.add('show');
-      document.getElementById('newGeminiKey').value = '';
+      document.getElementById('keyResult').classList.add('show');
       showToast(`Key created: ${data.license.key}`, 'success');
-      loadLicenses();
-    } else {
-      showToast('Failed to create key: ' + data.error, 'error');
-    }
-  }
-
-  // ─── Set Gemini Key Modal ─────────────────────────────────────────────
-  let _setKeyTarget = null;
-  function openSetKeyModal(licenseKey) {
-    _setKeyTarget = licenseKey;
-    document.getElementById('setKeyModalLicense').textContent = licenseKey;
-    document.getElementById('setKeyInput').value = '';
-    document.getElementById('setKeyModal').style.display = 'flex';
-    setTimeout(() => document.getElementById('setKeyInput').focus(), 100);
-  }
-  function closeSetKeyModal() {
-    document.getElementById('setKeyModal').style.display = 'none';
-    _setKeyTarget = null;
-  }
-  async function saveGeminiKey() {
-    const geminiApiKey = document.getElementById('setKeyInput').value.trim();
-    if (!geminiApiKey) { showToast('Enter a Gemini API key', 'error'); return; }
-    const res = await fetch(`${API}/api/license/set-gemini-key`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-      body: JSON.stringify({ key: _setKeyTarget, geminiApiKey }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`✅ Gemini key updated for ${_setKeyTarget}`, 'success');
-      closeSetKeyModal();
       loadLicenses();
     } else {
       showToast('Failed: ' + data.error, 'error');
@@ -1792,92 +416,167 @@ een ? timeAgo(new Date(l.last_seen)) : '<span class="dim">Never</span>';
   }
 
   function copyKey() {
-    const key = document.getElementById('newKeyDisplay').textContent;
-    navigator.clipboard.writeText(key);
-    showToast('Key copied to clipboard!', 'success');
+    navigator.clipboard.writeText(document.getElementById('newKeyDisplay').textContent);
+    showToast('Copied to clipboard!', 'success');
   }
 
+  // ── License Actions ───────────────────────────────────────────────────────
   async function revokeKey(key) {
-    if (!confirm(`Revoke license ${key}? The user's app will shut down within 5 minutes.`)) return;
+    if (!confirm(`Revoke ${key}? The user's app will shut down within 30 seconds.`)) return;
     const res = await fetch(`${API}/api/license/revoke`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
       body: JSON.stringify({ key }),
     });
     const data = await res.json();
-    if (data.success) {
-      showToast(`License ${key} revoked ✓`, 'success');
-      loadLicenses();
-    } else {
-      showToast('Failed: ' + data.error, 'error');
-    }
+    data.success ? (showToast(`Revoked ✓`, 'success'), loadLicenses()) : showToast('Failed: ' + data.error, 'error');
   }
 
   async function restoreKey(key) {
     const res = await fetch(`${API}/api/license/restore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
       body: JSON.stringify({ key }),
     });
     const data = await res.json();
-    if (data.success) {
-      showToast(`License ${key} restored ✓`, 'success');
-      loadLicenses();
-    } else {
-      showToast('Failed: ' + data.error, 'error');
-    }
+    data.success ? (showToast(`Restored ✓`, 'success'), loadLicenses()) : showToast('Failed: ' + data.error, 'error');
   }
 
   async function resetHwid(key) {
-    if (!confirm(`Reset machine lock for ${key}? User can activate on a new computer.`)) return;
+    if (!confirm(`Reset machine lock for ${key}?`)) return;
     const res = await fetch(`${API}/api/license/reset-hwid`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
       body: JSON.stringify({ key }),
     });
     const data = await res.json();
+    data.success ? showToast('HWID reset ✓', 'success') : showToast('Failed: ' + data.error, 'error');
+  }
+
+  async function globalKill() {
+    if (!confirm('KILL ALL active licenses? Every running HaimuAI app will shut down!')) return;
+    let killed = 0;
+    for (const l of allLicenses.filter(l => l.active)) {
+      await fetch(`${API}/api/license/revoke`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
+        body: JSON.stringify({ key: l.key }),
+      });
+      killed++;
+    }
+    showToast(`Killed ${killed} licenses`, 'success');
+    loadLicenses();
+  }
+
+  // ── API Keys Modal ─────────────────────────────────────────────────────────
+  async function openApiKeysModal(licenseKey) {
+    currentModalLicense = licenseKey;
+    document.getElementById('modalLicenseKey').textContent = licenseKey;
+    document.getElementById('newKeyLabel').value = '';
+    document.getElementById('newKeyValue').value = '';
+    document.getElementById('apiKeysModal').classList.add('open');
+    await refreshApiKeysList();
+  }
+
+  function closeApiKeysModal() {
+    document.getElementById('apiKeysModal').classList.remove('open');
+    currentModalLicense = null;
+    loadLicenses(); // refresh key counts
+  }
+
+  async function refreshApiKeysList() {
+    document.getElementById('apiKeysList').innerHTML = '<div class="empty-keys">Loading...</div>';
+    const res = await fetch(`${API}/api/license/api-keys/${currentModalLicense}`, {
+      headers: { Authorization: `Bearer ${adminPassword}` }
+    });
+    const data = await res.json();
+    const keys = data.keys || [];
+
+    if (!keys.length) {
+      document.getElementById('apiKeysList').innerHTML =
+        '<div class="empty-keys">No API keys yet. Add one below to enable AI for this license.</div>';
+      return;
+    }
+
+    document.getElementById('apiKeysList').innerHTML = `
+      <div class="api-keys-list">
+        ${keys.map(k => `
+          <div class="api-key-row">
+            <div style="flex:1;min-width:0">
+              <div class="api-key-label">${escHtml(k.label)}</div>
+              <div class="api-key-value">${escHtml(k.api_key_masked)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:${k.active ? 'var(--green)' : 'var(--text-dim)'}">${k.active ? '● Active' : '○ Disabled'}</span>
+              <button class="btn btn-ghost btn-sm" onclick="toggleApiKey('${k.id}', ${!k.active})">${k.active ? 'Disable' : 'Enable'}</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteApiKey('${k.id}')">🗑</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  async function addApiKey() {
+    const apiKey = document.getElementById('newKeyValue').value.trim();
+    const label = document.getElementById('newKeyLabel').value.trim() || 'Key';
+    if (!apiKey) { showToast('Enter a Gemini API key', 'error'); return; }
+
+    const res = await fetch(`${API}/api/license/api-keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
+      body: JSON.stringify({ licenseKey: currentModalLicense, apiKey, label }),
+    });
+    const data = await res.json();
     if (data.success) {
-      showToast(`HWID reset for ${key} ✓`, 'success');
+      document.getElementById('newKeyValue').value = '';
+      document.getElementById('newKeyLabel').value = '';
+      showToast('API key added ✓', 'success');
+      refreshApiKeysList();
     } else {
       showToast('Failed: ' + data.error, 'error');
     }
   }
 
-  async function globalKill() {
-    if (!confirm('⚠️ GLOBAL KILL: This will revoke ALL active licenses immediately. Are you absolutely sure?')) return;
-    if (!confirm('Second confirmation: ALL users will be disconnected within 5 minutes. Continue?')) return;
-
-    const actives = allLicenses.filter(l => l.active);
-    let count = 0;
-    for (const l of actives) {
-      await fetch(`${API}/api/license/revoke`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
-        body: JSON.stringify({ key: l.key }),
-      });
-      count++;
-    }
-
-    showToast(`Global kill complete. ${count} licenses revoked.`, 'success');
-    loadLicenses();
+  async function deleteApiKey(id) {
+    if (!confirm('Remove this API key?')) return;
+    const res = await fetch(`${API}/api/license/api-keys/${id}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${adminPassword}` }
+    });
+    const data = await res.json();
+    data.success ? (showToast('Key removed', 'info'), refreshApiKeysList()) : showToast('Failed: ' + data.error, 'error');
   }
 
-  // ─── Utils ───────────────────────────────────────────────────────────
+  async function toggleApiKey(id, active) {
+    const res = await fetch(`${API}/api/license/api-keys/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminPassword}` },
+      body: JSON.stringify({ active }),
+    });
+    const data = await res.json();
+    data.success ? (showToast(active ? 'Key enabled' : 'Key disabled', 'info'), refreshApiKeysList()) : showToast('Failed: ' + data.error, 'error');
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('apiKeysModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('apiKeysModal')) closeApiKeysModal();
+  });
+
+  // ── Utilities ─────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
   function timeAgo(date) {
-    const diff = Date.now() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return '<span style="color:var(--green)">Just now</span>';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs/24)}d ago`;
+    const s = Math.floor((Date.now() - date) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    return `${Math.floor(s/86400)}d ago`;
   }
 
-  function showToast(msg, type = 'success') {
+  let toastTimer;
+  function showToast(msg, type = 'info') {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = `toast ${type} show`;
-    setTimeout(() => t.classList.remove('show'), 3500);
+    t.className = `toast show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
   }
 </script>
 </body>
