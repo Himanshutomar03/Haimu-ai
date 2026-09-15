@@ -11,8 +11,8 @@ const PORT = process.env.PORT || 3000;
 
 // ─── Middleware ────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: '*', // Electron app can call from any origin
-  methods: ['GET', 'POST', 'DELETE'],
+  origin: '*',
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'x-license-token', 'Authorization'],
 }));
 app.use(express.json({ limit: '50mb' })); // 50MB for base64 screenshots
@@ -189,11 +189,33 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ─── Start ────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`[HaimuAI Server] Running on port ${PORT}`);
-  console.log(`[HaimuAI Server] Admin dashboard: http://localhost:${PORT}/admin`);
-  console.log(`[HaimuAI Server] Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// ─── Start + Auto-migrate ─────────────────────────────────────────────────
+async function startServer() {
+  const supabase = require('./db/supabase');
+
+  // Auto-migration: ensure gemini_api_key column exists
+  try {
+    // We can't run DDL via PostgREST, so we do a safe check-and-insert approach:
+    // Just attempt to select the column. If it errors, log instructions.
+    const { error } = await supabase.from('licenses').select('gemini_api_key').limit(1);
+    if (error && error.message.includes('gemini_api_key')) {
+      console.warn('[Migration] gemini_api_key column not found.');
+      console.warn('[Migration] Run this in Supabase SQL Editor:');
+      console.warn('[Migration] ALTER TABLE licenses ADD COLUMN IF NOT EXISTS gemini_api_key TEXT;');
+    } else {
+      console.log('[Migration] gemini_api_key column OK');
+    }
+  } catch (e) {
+    console.warn('[Migration] Could not check schema:', e.message);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`[HaimuAI Server] Running on port ${PORT}`);
+    console.log(`[HaimuAI Server] Admin dashboard: http://localhost:${PORT}/admin`);
+    console.log(`[HaimuAI Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
+
+startServer();
 
 module.exports = app;
