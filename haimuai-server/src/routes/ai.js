@@ -30,7 +30,7 @@ async function getLicenseData(licenseKey) {
     active: licenseRes.data.active,
     expires_at: licenseRes.data.expires_at,
     keys: (keysRes.data || []).map(k => k.api_key),
-    idx: (cached?.idx || 0) % Math.max((keysRes.data || []).length, 1), // preserve rotation index
+    idx: (cached?.idx || 0) % Math.max((keysRes.data || []).length, 1),
     cachedAt: Date.now(),
   };
 
@@ -64,7 +64,7 @@ async function requireActiveLicense(req, res, next) {
   if (!info) return res.status(401).json({ error: 'License not found', revoked: true });
 
   if (!info.active) {
-    invalidateLicenseCache(payload.licenseKey); // force fresh on next call too
+    invalidateLicenseCache(payload.licenseKey);
     return res.status(401).json({ error: 'License revoked', revoked: true });
   }
 
@@ -112,9 +112,28 @@ async function geminiWithFallback(endpoint, body, licenseInfo) {
   return null;
 }
 
+// ─── Helper: parse client messages array into { message, history } ────────────
+// Client sends: { messages: [{role, content}, ...], systemPrompt, model }
+// The last item is the current user message; everything before is history.
+function parseMessages(body) {
+  const msgs = body.messages || [];
+
+  // Fallback: client may also send legacy { message, history } format
+  if (msgs.length === 0) {
+    return { message: body.message || '', history: body.history || [] };
+  }
+
+  const last = msgs[msgs.length - 1];
+  const message = last?.content || '';
+  const history = msgs.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
+  return { message, history };
+}
+
 // ─── POST /api/ai/chat ────────────────────────────────────────────────────────
 router.post('/chat', requireActiveLicense, async (req, res) => {
-  const { message, history = [], command = 'general', language = 'javascript', systemPrompt } = req.body;
+  const { message, history } = parseMessages(req.body);
+  const { command = 'general', language = 'javascript', systemPrompt } = req.body;
+
   if (!message) return res.status(400).json({ error: 'Message required' });
 
   const sysPrompt = systemPrompt || buildSystemPrompt(command, language);
@@ -123,14 +142,14 @@ router.post('/chat', requireActiveLicense, async (req, res) => {
     { role: 'user', parts: [{ text: message }] },
   ];
 
-  const body = {
+  const geminiBody = {
     contents,
     systemInstruction: { parts: [{ text: sysPrompt }] },
     generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
   };
 
   try {
-    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', body, req.licenseInfo);
+    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', geminiBody, req.licenseInfo);
 
     if (!geminiRes) {
       return res.status(503).json({ error: 'All API keys are temporarily exhausted. Try again in a moment.' });
@@ -150,24 +169,51 @@ router.post('/chat', requireActiveLicense, async (req, res) => {
 });
 
 // ─── POST /api/ai/vision ──────────────────────────────────────────────────────
+// Accepts new client format: { imageBase64, prompt, messages, systemPrompt, model }
+// Also supports legacy format: { images: [...], question, language }
 router.post('/vision', requireActiveLicense, async (req, res) => {
-  const { images, question = 'What do you see?', language = 'javascript' } = req.body;
-  if (!images || !Array.isArray(images) || images.length === 0) {
-    return res.status(400).json({ error: 'Images array required' });
+  const { language = 'javascript', systemPrompt } = req.body;
+
+  // Resolve image(s) and question from either client format
+  let images, question;
+
+  if (req.body.imageBase64) {
+    // New format from ai-chat.js: single base64 string + prompt text
+    images = [req.body.imageBase64];
+    question = req.body.prompt || 'What do you see?';
+  } else if (req.body.images && Array.isArray(req.body.images)) {
+    // Legacy format
+    images = req.body.images;
+    question = req.body.question || 'What do you see?';
+  } else {
+    return res.status(400).json({ error: 'imageBase64 or images array required' });
+  }
+
+  if (images.length === 0) {
+    return res.status(400).json({ error: 'No images provided' });
   }
 
   const imageParts = images.map(img => ({
     inlineData: { mimeType: 'image/jpeg', data: img.replace(/^data:image\/\w+;base64,/, '') },
   }));
 
-  const body = {
-    contents: [{ role: 'user', parts: [...imageParts, { text: question }] }],
-    systemInstruction: { parts: [{ text: buildSystemPrompt('explain', language) }] },
+  // Include recent conversation context if provided
+  const historyContents = (req.body.messages || []).slice(-6).map(m => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content }],
+  }));
+
+  const geminiBody = {
+    contents: [
+      ...historyContents,
+      { role: 'user', parts: [...imageParts, { text: question }] },
+    ],
+    systemInstruction: { parts: [{ text: systemPrompt || buildSystemPrompt('explain', language) }] },
     generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
   };
 
   try {
-    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', body, req.licenseInfo);
+    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', geminiBody, req.licenseInfo);
     if (!geminiRes) return res.status(503).json({ error: 'All API keys exhausted.' });
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
@@ -184,17 +230,20 @@ router.post('/vision', requireActiveLicense, async (req, res) => {
 
 // ─── POST /api/ai/stream ──────────────────────────────────────────────────────
 router.post('/stream', requireActiveLicense, async (req, res) => {
-  const { message, history = [], command = 'general', language = 'javascript' } = req.body;
+  const { message, history } = parseMessages(req.body);
+  const { command = 'general', language = 'javascript', systemPrompt } = req.body;
+
   if (!message) return res.status(400).json({ error: 'Message required' });
 
+  const sysPrompt = systemPrompt || buildSystemPrompt(command, language);
   const contents = [
     ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: h.content }] })),
     { role: 'user', parts: [{ text: message }] },
   ];
 
-  const body = {
+  const geminiBody = {
     contents,
-    systemInstruction: { parts: [{ text: buildSystemPrompt(command, language) }] },
+    systemInstruction: { parts: [{ text: sysPrompt }] },
     generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
   };
 
@@ -203,19 +252,28 @@ router.post('/stream', requireActiveLicense, async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
 
   const key = pickKey(req.licenseInfo);
-  if (!key) { res.write(`data: ${JSON.stringify({ error: 'No API keys available' })}\n\n`); return res.end(); }
+  if (!key) {
+    res.write(`data: ${JSON.stringify({ error: 'No API keys available' })}\n\n`);
+    return res.end();
+  }
 
   try {
     const url = `${GEMINI_BASE}/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${key}`;
     const geminiRes = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(geminiBody),
     });
 
-    if (!geminiRes.ok) { res.write(`data: ${JSON.stringify({ error: 'Gemini request failed' })}\n\n`); return res.end(); }
+    if (!geminiRes.ok) {
+      res.write(`data: ${JSON.stringify({ error: 'Gemini request failed' })}\n\n`);
+      return res.end();
+    }
     geminiRes.body.on('data', chunk => { try { res.write(chunk); } catch (e) {} });
-    geminiRes.body.on('end', () => { supabase.rpc('increment_usage', { license_key: req.licenseKey }).catch(() => {}); res.end(); });
+    geminiRes.body.on('end', () => {
+      supabase.rpc('increment_usage', { license_key: req.licenseKey }).catch(() => {});
+      res.end();
+    });
     geminiRes.body.on('error', () => res.end());
     req.on('close', () => geminiRes.body.destroy());
   } catch (err) {

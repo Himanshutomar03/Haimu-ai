@@ -372,6 +372,11 @@ CRITICAL RULES:
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
+        // ── Revoke detection: shut down app immediately ──
+        if (err.revoked === true) {
+          console.warn('[HaimuAi] License revoked — shutting down immediately.');
+          setTimeout(() => { try { window.haimuai.forceQuit(); } catch(e) {} }, 1500);
+        }
         throw new Error(err.error || `Server error: ${response.status}`);
       }
 
@@ -415,6 +420,11 @@ CRITICAL RULES:
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
+        // ── Revoke detection: shut down app immediately ──
+        if (err.revoked === true) {
+          console.warn('[HaimuAi] License revoked — shutting down immediately.');
+          setTimeout(() => { try { window.haimuai.forceQuit(); } catch(e) {} }, 1500);
+        }
         throw new Error(err.error || `Server error: ${response.status}`);
       }
 
@@ -580,6 +590,11 @@ CRITICAL RULES:
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
+      // ── Revoke detection: shut down app immediately ──
+      if (err.revoked === true) {
+        console.warn('[HaimuAi] License revoked — shutting down immediately.');
+        setTimeout(() => { try { window.haimuai.forceQuit(); } catch(e) {} }, 1500);
+      }
       throw new Error(err.error || `Vision server error: ${response.status}`);
     }
 
