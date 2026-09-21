@@ -115,8 +115,8 @@ const store = new Store({
     // ── App settings ──
     defaultLanguage: 'javascript',
     defaultCommand: 'explain',
-    autoFocus: true,
-    alwaysActive: false,
+    autoFocus: false,
+    alwaysActive: true,
     typingSpeed: 50,
     fontSize: 14,
   }
@@ -148,7 +148,7 @@ let safeMode = true;
 let interactionSafeMode = false;
 let stealthMode = true;
 let ghostMode = false;
-let alwaysActive = false;
+let alwaysActive = true;
 
 function createWindow() {
   let { width, height } = store.get('windowBounds');
@@ -211,6 +211,7 @@ function createWindow() {
   }
 
   // Apply advanced native stealth (hide from Alt+Tab + exclude from capture)
+  alwaysActive = store.get('alwaysActive', true);
   applyNativeStealth();
 
   // Grant microphone + display media permissions for voice recognition
@@ -338,6 +339,9 @@ async function applyNativeStealth() {
   if (!mainWindow) return;
   try {
     await applyFullStealth(mainWindow);
+    if (alwaysActive) {
+      await applyNoActivate(mainWindow);
+    }
   } catch (err) {
     console.error('[Stealth] Native stealth failed:', err.message);
   }
@@ -360,13 +364,13 @@ function toggleWindow() {
 
 function showWindow() {
   if (!mainWindow) return;
-  mainWindow.show();
-  mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
-  // Only steal focus if alwaysActive is OFF — when it's ON, the exam
-  // browser must remain the foreground window to avoid detection.
-  if (!alwaysActive) {
+  if (alwaysActive) {
+    mainWindow.showInactive();
+  } else {
+    mainWindow.show();
     mainWindow.focus();
   }
+  mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
   isVisible = true;
   // Re-apply stealth after showing
   applyNativeStealth();
@@ -793,108 +797,63 @@ function moveWindow(dx, dy) {
   mainWindow.setPosition(pos[0] + dx, pos[1] + dy);
 }
 
+// ============================================================
+// OPTION B — PowerShell BitBlt screen capture
+// Uses Win32 GDI BitBlt to copy pixels directly from the screen
+// at the driver level. Zero window events, zero focus changes,
+// zero detection surface. No hide/show/opacity tricks needed.
+// ============================================================
+const SCREENSHOT_PS1 = path.join(__dirname, 'utils', 'screenshot.ps1');
+
+function captureScreenBitBlt() {
+  return new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+    const ps = spawn('powershell.exe', [
+      '-ExecutionPolicy', 'Bypass',
+      '-WindowStyle', 'Hidden',
+      '-NonInteractive',
+      '-File', SCREENSHOT_PS1
+    ], { windowsHide: true });
+
+    ps.stdout.on('data', (d) => { stdout += d.toString(); });
+    ps.stderr.on('data', (d) => { stderr += d.toString(); });
+    ps.on('close', (code) => {
+      const line = stdout.trim();
+      if (code !== 0 || line.startsWith('ERR:')) {
+        return reject(new Error(line.replace('ERR:', '') || stderr || 'BitBlt failed'));
+      }
+      // line = "OK:base64:<base64data>"
+      const b64 = line.replace('OK:base64:', '');
+      resolve('data:image/png;base64,' + b64);
+    });
+    ps.on('error', reject);
+  });
+}
+
 async function takeScreenshot() {
   try {
-    // Temporarily disable content protection and native capture exclusion for clean capture
-    const wasProtected = safeMode;
-    if (wasProtected) {
-      mainWindow.setContentProtection(false);
-    }
-    // Restore capture visibility temporarily
-    await restoreCapture(mainWindow);
-    
-    // Hide our window so it doesn't appear in the screenshot
-    const wasVisible = isVisible;
-    if (mainWindow && wasVisible) {
-      isVisible = false;
-      mainWindow.hide();
-    }
-    
-    // Small delay to let the window fully hide
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: screen.getPrimaryDisplay().workAreaSize
-    });
-    
-    // Restore window visibility
-    if (mainWindow && wasVisible) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-    
-    // Restore content protection and native stealth
-    if (wasProtected) {
-      mainWindow.setContentProtection(true);
-    }
-    // Re-apply full native stealth
-    await applyNativeStealth();
-    
-    if (sources.length > 0) {
-      const screenshot = sources[0].thumbnail;
-      const dataUrl = screenshot.toDataURL();
-      mainWindow.webContents.send('screenshot-taken', dataUrl);
-    }
+    // ── OPTION B: PowerShell BitBlt capture ─────────────────────────────────
+    // Calls Win32 GDI BitBlt via screenshot.ps1 — captures screen pixels at the
+    // driver level without any Electron window manipulation.
+    // No hide(), no opacity change, no focus events → undetectable.
+    const dataUrl = await captureScreenBitBlt();
+    mainWindow.webContents.send('screenshot-taken', dataUrl);
   } catch (err) {
-    console.error('Screenshot failed:', err);
-    // Make sure window is shown even on error
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-      applyNativeStealth();
-    }
+    console.error('[Screenshot] BitBlt capture failed:', err.message);
   }
 }
 
 async function takeScreenshotAndAnswer() {
   try {
-    // Temporarily disable content protection for clean capture
-    const wasProtected = safeMode;
-    if (wasProtected) {
-      mainWindow.setContentProtection(false);
-    }
-    await restoreCapture(mainWindow);
-
-    // Hide our window so it doesn't appear in the screenshot
-    const wasVisible = isVisible;
-    if (mainWindow && wasVisible) {
-      isVisible = false;
-      mainWindow.hide();
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: screen.getPrimaryDisplay().workAreaSize
-    });
-
-    // Restore window visibility
-    if (mainWindow && wasVisible) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-
-    // Restore content protection and native stealth
-    if (wasProtected) {
-      mainWindow.setContentProtection(true);
-    }
-    await applyNativeStealth();
-
-    if (sources.length > 0) {
-      const dataUrl = sources[0].thumbnail.toDataURL();
-      // Send directly to renderer for instant AI answering (no preview modal)
+    // ── OPTION B: PowerShell BitBlt capture ─────────────────────────────────
+    const dataUrl = await captureScreenBitBlt();
+    if (!isVisible) {
       showWindow();
-      mainWindow.webContents.send('answer-screenshot', dataUrl);
     }
+    mainWindow.webContents.send('answer-screenshot', dataUrl);
   } catch (err) {
-    console.error('Answer screenshot failed:', err);
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-      applyNativeStealth();
-    }
+    console.error('[AnswerScreenshot] BitBlt capture failed:', err.message);
   }
 }
 
@@ -919,53 +878,10 @@ ipcMain.handle('save-settings', (event, settings) => {
 
 ipcMain.handle('take-screenshot', async () => {
   try {
-    // Temporarily disable content protection and native capture exclusion for clean capture
-    const wasProtected = safeMode;
-    if (wasProtected) {
-      mainWindow.setContentProtection(false);
-    }
-    await restoreCapture(mainWindow);
-    
-    // Hide our window so it doesn't appear in the screenshot
-    const wasVisible = isVisible;
-    if (mainWindow && wasVisible) {
-      isVisible = false;
-      mainWindow.hide();
-    }
-    
-    // Small delay to let the window fully hide
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: screen.getPrimaryDisplay().workAreaSize
-    });
-    
-    // Restore window visibility
-    if (mainWindow && wasVisible) {
-      mainWindow.show();
-      mainWindow.focus();
-      isVisible = true;
-    }
-    
-    // Restore content protection and native stealth
-    if (wasProtected) {
-      mainWindow.setContentProtection(true);
-    }
-    await applyNativeStealth();
-    
-    if (sources.length > 0) {
-      return sources[0].thumbnail.toDataURL();
-    }
+    // ── OPTION B: PowerShell BitBlt capture ─────────────────────────────────
+    return await captureScreenBitBlt();
   } catch (err) {
-    console.error('Screenshot failed:', err);
-    // Make sure window is shown even on error
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-      isVisible = true;
-      applyNativeStealth();
-    }
+    console.error('[IPC Screenshot] BitBlt capture failed:', err.message);
   }
   return null;
 });
@@ -1138,14 +1054,14 @@ function startHeartbeat() {
       });
       const data = await res.json();
       if (!data.active) {
-        console.log('[Heartbeat] License revoked by server. Shutting down.');
-        // Notify renderer then quit
+        console.log('[Heartbeat] License revoked/expired by server. Restarting gracefully.');
+        // Notify renderer with banner, then gracefully restart so user can re-validate
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('license-revoked', data.reason || 'License has been revoked');
+          mainWindow.webContents.send('license-revoked', data.reason || 'Session expired — please restart');
         }
-        // Immediately block all AI by clearing the token from memory
+        // Clear only the session token — keep licenseKey so re-validation is automatic
         store.set('licenseToken', '');
-        setTimeout(() => forceQuit(), 3000);
+        setTimeout(() => gracefulRestart(), 3000);
       } else if (data.token) {
         // Refresh token
         store.set('licenseToken', data.token);
@@ -1158,8 +1074,51 @@ function startHeartbeat() {
 }
 
 /**
+ * Graceful restart — clears only the session token (keeps licenseKey) so the
+ * app re-validates automatically on next launch without needing re-activation.
+ * Used when a token expires or is revoked by the server.
+ */
+function gracefulRestart() {
+  console.log('[GracefulRestart] Token expired/revoked — restarting to re-validate...');
+  app.isQuitting = true;
+
+  // Write quit flag so immortal-guardian.ps1 stops respawning during restart
+  const quitFlagPath = path.join(__dirname, '.haimu_quit');
+  try { require('fs').writeFileSync(quitFlagPath, Date.now().toString()); } catch(e) {}
+
+  // Clear only the session token — keep licenseKey so next launch auto-validates
+  store.set('licenseToken', '');
+
+  // Stop heartbeat
+  if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+
+  // Stop focus enforcement
+  stopFocusEnforcement();
+
+  // Stop keyhook
+  stopKeyHook();
+
+  // Kill guardian processes (they'll be restarted on relaunch)
+  if (guardianProcess) { try { guardianProcess.kill('SIGKILL'); } catch(e) {} guardianProcess = null; }
+  if (immortalGuardianProcess) { try { immortalGuardianProcess.kill('SIGKILL'); } catch(e) {} immortalGuardianProcess = null; }
+
+  try { globalShortcut.unregisterAll(); } catch(e) {}
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try { mainWindow.destroy(); } catch(e) {}
+  }
+  if (licenseWindow && !licenseWindow.isDestroyed()) {
+    try { licenseWindow.destroy(); } catch(e) {}
+  }
+
+  // Exit cleanly — user can restart with npm start and key auto-validates
+  setTimeout(() => app.exit(0), 300);
+}
+
+/**
  * Force quit — kills all guardian/watchdog processes first so the
  * app does not get respawned after quitting (Ctrl+Shift+Q fix).
+ * Also clears the licenseKey to force full re-activation on next launch.
  */
 function forceQuit() {
   console.log('[ForceQuit] Shutting down all processes...');
@@ -1169,7 +1128,7 @@ function forceQuit() {
   const quitFlagPath = path.join(__dirname, '.haimu_quit');
   try { require('fs').writeFileSync(quitFlagPath, Date.now().toString()); } catch(e) {}
 
-  // Immediately clear license token so any in-flight AI calls fail
+  // Clear both token and key — this is a deliberate full deactivation
   store.set('licenseToken', '');
   store.set('licenseKey', '');  // force re-activation on next launch
 

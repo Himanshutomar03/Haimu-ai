@@ -42,9 +42,11 @@ class HaimuAiApp {
     // Load chat sessions
     window.aiChat.loadSessions();
 
-    // Auto-focus input
+    // Auto-focus input (only if autoFocus is enabled AND alwaysActive is false)
     if (window.settingsManager.get('autoFocus')) {
-      document.getElementById('userInput')?.focus();
+      window.haimuai?.getAlwaysActive?.().then(active => {
+        if (!active) document.getElementById('userInput')?.focus();
+      });
     }
   }
 
@@ -1332,8 +1334,7 @@ class HaimuAiApp {
           }
         }
 
-        // Focus input so user can type immediately
-        setTimeout(() => document.getElementById('userInput')?.focus(), 200);
+        // Note: Do not auto-focus input here to prevent stealing OS focus from exam browsers
       }
     } catch (error) {
       this.showToast('Screenshot failed: ' + error.message, 'error');
@@ -1788,7 +1789,7 @@ class HaimuAiApp {
     window.haimuai.onScreenshotTaken((dataUrl) => {
       this.addAttachment(dataUrl, 'capture');
       this.showToast('📸 Screenshot added to input! Type a message and send.', 'success');
-      setTimeout(() => document.getElementById('userInput')?.focus(), 200);
+      // Note: Do not auto-focus input here to prevent stealing OS focus from exam browsers
     });
 
     window.haimuai.onAiCommand((command) => {
@@ -1800,7 +1801,9 @@ class HaimuAiApp {
       const input = document.getElementById('userInput');
       if (input) {
         input.placeholder = this.getPlaceholder(command);
-        input.focus();
+        window.haimuai?.getAlwaysActive?.().then(active => {
+          if (!active) input.focus();
+        });
       }
       
       this.showToast(`Mode: ${command.charAt(0).toUpperCase() + command.slice(1)}`, 'info');

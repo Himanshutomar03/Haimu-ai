@@ -372,10 +372,10 @@ CRITICAL RULES:
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        // ── Revoke detection: shut down app immediately ──
+        // ── Revoke detection: let heartbeat handle restart gracefully ──
         if (err.revoked === true) {
-          console.warn('[HaimuAi] License revoked — shutting down immediately.');
-          setTimeout(() => { try { window.haimuai.forceQuit(); } catch(e) {} }, 1500);
+          console.warn('[HaimuAi] License revoked — heartbeat will handle graceful restart.');
+          throw new Error('License revoked. The app will restart automatically in a moment.');
         }
         throw new Error(err.error || `Server error: ${response.status}`);
       }
@@ -420,10 +420,10 @@ CRITICAL RULES:
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        // ── Revoke detection: shut down app immediately ──
+        // ── Revoke detection: let heartbeat handle restart gracefully ──
         if (err.revoked === true) {
-          console.warn('[HaimuAi] License revoked — shutting down immediately.');
-          setTimeout(() => { try { window.haimuai.forceQuit(); } catch(e) {} }, 1500);
+          console.warn('[HaimuAi] License revoked — heartbeat will handle graceful restart.');
+          throw new Error('License revoked. The app will restart automatically in a moment.');
         }
         throw new Error(err.error || `Server error: ${response.status}`);
       }
@@ -590,10 +590,10 @@ CRITICAL RULES:
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      // ── Revoke detection: shut down app immediately ──
+      // ── Revoke detection: let heartbeat handle restart gracefully ──
       if (err.revoked === true) {
-        console.warn('[HaimuAi] License revoked — shutting down immediately.');
-        setTimeout(() => { try { window.haimuai.forceQuit(); } catch(e) {} }, 1500);
+        console.warn('[HaimuAi] License revoked — heartbeat will handle graceful restart.');
+        throw new Error('License revoked. The app will restart automatically in a moment.');
       }
       throw new Error(err.error || `Vision server error: ${response.status}`);
     }

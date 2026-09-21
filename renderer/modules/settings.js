@@ -89,7 +89,7 @@ class SettingsManager {
       fontSize: parseInt(el('settingFontSize')?.value) || 14,
       alwaysOnTop: el('settingAlwaysOnTop')?.checked ?? true,
       autoFocus: el('settingAutoFocus')?.checked ?? true,
-      alwaysActive: el('settingAlwaysActive')?.checked ?? false,
+      alwaysActive: el('settingAlwaysActive')?.checked ?? true,
       typingSpeed: parseInt(el('settingTypingSpeed')?.value) || 50,
       defaultLanguage: el('settingDefaultLanguage')?.value || 'javascript',
       theme: document.documentElement.getAttribute('data-theme') || 'dark'
