@@ -17,7 +17,7 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 | Type | Link | Size |
 |------|------|------|
 | 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.1.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Setup-3.1.0.exe) | ~74 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Portable.exe) | ~68 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Portable.exe) | ~74 MB |
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
 
