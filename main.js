@@ -166,6 +166,9 @@ function createWindow() {
   if (x < -width + 50 || x > workArea.width - 50) x = workArea.width - width - 20;
   if (y < -height + 50 || y > workArea.height - 50) y = 60;
 
+  // Read alwaysActive BEFORE creating window so we can apply it immediately
+  alwaysActive = store.get('alwaysActive', true);
+
   mainWindow = new BrowserWindow({
     width,
     height,
@@ -175,6 +178,7 @@ function createWindow() {
     y,
     frame: false,
     transparent: true,
+    show: false,                // Don't show until stealth is applied
     // 'screen-saver' is the HIGHEST z-order level in Windows — sits above
     // lockdown browser fullscreen windows, alert dialogs, and everything else.
     alwaysOnTop: true,
@@ -210,8 +214,36 @@ function createWindow() {
     mainWindow.setContentProtection(true);
   }
 
-  // Apply advanced native stealth (hide from Alt+Tab + exclude from capture)
-  alwaysActive = store.get('alwaysActive', true);
+  // ── CRITICAL: Apply WS_EX_NOACTIVATE SYNCHRONOUSLY before window is shown ──
+  // This prevents ANY click on HaimuAi from stealing OS focus from the exam
+  // browser — even the very first click after launch.
+  if (alwaysActive) {
+    try {
+      const { execFileSync } = require('child_process');
+      const buf  = mainWindow.getNativeWindowHandle();
+      const hwnd = (buf.length >= 8 ? buf.readBigUInt64LE(0) : BigInt(buf.readUInt32LE(0))).toString();
+      execFileSync('powershell.exe', [
+        '-ExecutionPolicy', 'Bypass',
+        '-WindowStyle', 'Hidden',
+        '-NonInteractive',
+        '-File', path.join(__dirname, 'utils', 'stealth.ps1'),
+        '-Hwnd', hwnd,
+        '-Action', 'no-activate'
+      ], { windowsHide: true, timeout: 5000 });
+      console.log('[AlwaysActive] WS_EX_NOACTIVATE applied synchronously before show');
+    } catch (e) {
+      console.warn('[AlwaysActive] Sync stealth failed, will retry async:', e.message);
+    }
+  }
+
+  // Now safe to show — WS_EX_NOACTIVATE is already set
+  if (alwaysActive) {
+    mainWindow.showInactive();
+  } else {
+    mainWindow.show();
+  }
+
+  // Apply full async stealth (hide from Alt+Tab, exclude from capture, enforce topmost)
   applyNativeStealth();
 
   // Grant microphone + display media permissions for voice recognition

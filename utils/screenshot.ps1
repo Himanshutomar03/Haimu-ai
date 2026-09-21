@@ -8,8 +8,8 @@ param(
 # at the OS/driver level WITHOUT triggering any window events,
 # focus changes, or activation signals.
 #
-# This completely bypasses Electron desktopCapturer so no
-# window hide/show is needed — zero detection surface.
+# Screen dimensions obtained via GetSystemMetrics (pure Win32)
+# — no System.Windows.Forms initialization required.
 # ============================================================
 
 Add-Type -TypeDefinition @"
@@ -28,6 +28,10 @@ public class ScreenCapture {
 
     [DllImport("user32.dll")]
     public static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+    // Pure Win32 screen metrics — no WinForms needed
+    [DllImport("user32.dll")]
+    public static extern int GetSystemMetrics(int nIndex);
 
     [DllImport("gdi32.dll")]
     public static extern IntPtr CreateCompatibleDC(IntPtr hDC);
@@ -48,31 +52,39 @@ public class ScreenCapture {
     [DllImport("gdi32.dll")]
     public static extern bool DeleteObject(IntPtr hObject);
 
-    [DllImport("user32.dll")]
-    public static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct RECT {
-        public int Left, Top, Right, Bottom;
-    }
-
     public const uint SRCCOPY = 0x00CC0020;
 
+    // SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79 → full virtual desktop (all monitors)
+    // SM_CXSCREEN=0, SM_CYSCREEN=1 → primary monitor only
+    public const int SM_CXVIRTUALSCREEN = 78;
+    public const int SM_CYVIRTUALSCREEN = 79;
+    public const int SM_XVIRTUALSCREEN  = 76;
+    public const int SM_YVIRTUALSCREEN  = 77;
+
     public static string CaptureToBase64() {
-        // Get primary screen dimensions
-        int screenWidth  = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width;
-        int screenHeight = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height;
+        // Use virtual screen to capture all monitors
+        int x      = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        int y      = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        int width  = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+        // Fallback to primary screen if virtual screen metrics are invalid
+        if (width <= 0 || height <= 0) {
+            x = 0; y = 0;
+            width  = GetSystemMetrics(0);
+            height = GetSystemMetrics(1);
+        }
 
         IntPtr desktopHwnd = GetDesktopWindow();
         IntPtr desktopDC   = GetWindowDC(desktopHwnd);
         IntPtr memDC       = CreateCompatibleDC(desktopDC);
-        IntPtr bitmap      = CreateCompatibleBitmap(desktopDC, screenWidth, screenHeight);
+        IntPtr bitmap      = CreateCompatibleBitmap(desktopDC, width, height);
         IntPtr oldBitmap   = SelectObject(memDC, bitmap);
 
-        // BitBlt: copy screen pixels directly into our memory DC
-        BitBlt(memDC, 0, 0, screenWidth, screenHeight, desktopDC, 0, 0, SRCCOPY);
+        // BitBlt: copy screen pixels directly at the driver level
+        BitBlt(memDC, 0, 0, width, height, desktopDC, x, y, SRCCOPY);
 
-        // Convert GDI bitmap to .NET Bitmap and encode as PNG
+        // Convert GDI bitmap → .NET Bitmap → PNG → Base64
         Bitmap bmp = Image.FromHbitmap(bitmap);
         string base64 = "";
         using (MemoryStream ms = new MemoryStream()) {
@@ -91,16 +103,24 @@ public class ScreenCapture {
     }
 
     public static void CaptureToFile(string path) {
-        int screenWidth  = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width;
-        int screenHeight = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height;
+        int x      = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        int y      = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        int width  = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+        if (width <= 0 || height <= 0) {
+            x = 0; y = 0;
+            width  = GetSystemMetrics(0);
+            height = GetSystemMetrics(1);
+        }
 
         IntPtr desktopHwnd = GetDesktopWindow();
         IntPtr desktopDC   = GetWindowDC(desktopHwnd);
         IntPtr memDC       = CreateCompatibleDC(desktopDC);
-        IntPtr bitmap      = CreateCompatibleBitmap(desktopDC, screenWidth, screenHeight);
+        IntPtr bitmap      = CreateCompatibleBitmap(desktopDC, width, height);
         IntPtr oldBitmap   = SelectObject(memDC, bitmap);
 
-        BitBlt(memDC, 0, 0, screenWidth, screenHeight, desktopDC, 0, 0, SRCCOPY);
+        BitBlt(memDC, 0, 0, width, height, desktopDC, x, y, SRCCOPY);
 
         Bitmap bmp = Image.FromHbitmap(bitmap);
         bmp.Save(path, ImageFormat.Png);
@@ -112,15 +132,13 @@ public class ScreenCapture {
         ReleaseDC(desktopHwnd, desktopDC);
     }
 }
-"@ -ReferencedAssemblies "System.Windows.Forms","System.Drawing" -ErrorAction Stop
+"@ -ReferencedAssemblies "System.Drawing" -ErrorAction Stop
 
 try {
     if ($OutputPath -ne "") {
-        # Save to file mode
         [ScreenCapture]::CaptureToFile($OutputPath)
         Write-Output "OK:file:$OutputPath"
     } else {
-        # Base64 stdout mode
         $b64 = [ScreenCapture]::CaptureToBase64()
         Write-Output "OK:base64:$b64"
     }
