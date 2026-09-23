@@ -48,6 +48,12 @@ class HaimuAiApp {
         if (!active) document.getElementById('userInput')?.focus();
       });
     }
+
+    // Listen for free-mode API key auto-switch events
+    document.addEventListener('free-key-switched', (e) => {
+      const label = e.detail?.label || 'next key';
+      this.showToast(`🔑 Quota limit hit — auto-switched to "${label}"`, 'warning');
+    });
   }
 
   // ========================================
@@ -1667,9 +1673,18 @@ class HaimuAiApp {
 
     document.getElementById('btnSaveSettings')?.addEventListener('click', async () => {
       const settings = window.settingsManager.collectFromUI();
-      const success = await window.settingsManager.save(settings);
-      if (success) {
-        this.showToast('Settings saved!', 'success');
+      const [settingsOk, freeModeOk] = await Promise.all([
+        window.settingsManager.save(settings),
+        window.settingsManager.saveFreeModeSettings(),
+      ]);
+      if (settingsOk) {
+        const fmEnabled = document.getElementById('settingFreeModeEnabled')?.checked;
+        const keyCount = window.settingsManager._freeApiKeys.length;
+        if (fmEnabled && keyCount > 0) {
+          this.showToast(`✅ Settings saved! Free Mode active with ${keyCount} key${keyCount > 1 ? 's' : ''}.`, 'success');
+        } else {
+          this.showToast('Settings saved!', 'success');
+        }
         window.settingsManager.close();
       } else {
         this.showToast('Failed to save settings', 'error');

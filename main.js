@@ -98,6 +98,12 @@ process.on('uncaughtException', (err) => {
 // ALL AI calls go through this server. The real Gemini key lives there.
 const SERVER_URL = 'https://haimuai-server-production.up.railway.app';
 
+// ─── Free Mode ───────────────────────────────────────────────────────────────
+// When users supply their own Gemini API key(s) they bypass the license server.
+// The renderer calls the Gemini API directly using the stored keys.
+// FREE_MODE=true is set after app starts when stored freeApiKeys exist.
+let FREE_MODE = false;
+
 const store = new Store({
   defaults: {
     windowBounds: { width: 420, height: 650 },
@@ -112,6 +118,10 @@ const store = new Store({
     // ── License (NO API keys stored here) ──
     licenseKey: '',
     licenseToken: '',
+    // ── Free Mode: user-supplied API keys (bypasses license) ──
+    freeApiKeys: [],          // array of { provider, key, label } objects
+    freeApiKeyIndex: 0,       // index of currently active key
+    freeModeEnabled: false,   // true when user wants to use own keys
     // ── App settings ──
     defaultLanguage: 'javascript',
     defaultCommand: 'explain',
@@ -835,17 +845,92 @@ function moveWindow(dx, dy) {
 // at the driver level. Zero window events, zero focus changes,
 // zero detection surface. No hide/show/opacity tricks needed.
 // ============================================================
-const SCREENSHOT_PS1 = path.join(__dirname, 'utils', 'screenshot.ps1');
+// ─── Screenshot PS1 Path (ASAR-safe) ─────────────────────────────────────────
+// When running from a packaged NSIS/Portable exe the app is inside an ASAR
+// archive. PowerShell cannot execute scripts from inside ASAR, so we copy
+// the PS1 to a temp directory the first time and reuse it afterwards.
+const fs = require('fs');
+const os = require('os');
+
+let _screenshotPs1Path = null;
+
+function getScreenshotPs1Path() {
+  if (_screenshotPs1Path && fs.existsSync(_screenshotPs1Path)) {
+    return _screenshotPs1Path;
+  }
+
+  // Try the regular (non-packaged) path first
+  const srcPath = path.join(__dirname, 'utils', 'screenshot.ps1');
+  if (fs.existsSync(srcPath)) {
+    _screenshotPs1Path = srcPath;
+    return srcPath;
+  }
+
+  // Packaged build: copy from resources to a writable temp dir
+  const tmpDir = path.join(os.tmpdir(), 'haimuai');
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+  const tmpPs1 = path.join(tmpDir, 'screenshot.ps1');
+
+  // Look in process.resourcesPath (electron-builder unpacks files here)
+  const resourcePs1 = path.join(process.resourcesPath || '', 'utils', 'screenshot.ps1');
+  if (fs.existsSync(resourcePs1)) {
+    fs.copyFileSync(resourcePs1, tmpPs1);
+    _screenshotPs1Path = tmpPs1;
+    return tmpPs1;
+  }
+
+  // Last resort: write the PS1 content inline from embedded string
+  // This ensures screenshot always works even in deeply packaged builds
+  const inlinePs1 = `param([string]$OutputPath = "")
+Add-Type -TypeDefinition @"
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using System.IO;
+public class ScreenCapture {
+    [DllImport("user32.dll")] public static extern IntPtr GetDesktopWindow();
+    [DllImport("user32.dll")] public static extern IntPtr GetWindowDC(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    [DllImport("user32.dll")] public static extern int GetSystemMetrics(int nIndex);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleDC(IntPtr hDC);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleBitmap(IntPtr hDC, int nWidth, int nHeight);
+    [DllImport("gdi32.dll")] public static extern IntPtr SelectObject(IntPtr hDC, IntPtr hObject);
+    [DllImport("gdi32.dll")] public static extern bool BitBlt(IntPtr hDestDC, int x, int y, int nWidth, int nHeight, IntPtr hSrcDC, int xSrc, int ySrc, uint dwRop);
+    [DllImport("gdi32.dll")] public static extern bool DeleteDC(IntPtr hDC);
+    [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr hObject);
+    public const uint SRCCOPY = 0x00CC0020;
+    public static string CaptureToBase64() {
+        int x = GetSystemMetrics(76); int y = GetSystemMetrics(77);
+        int width = GetSystemMetrics(78); int height = GetSystemMetrics(79);
+        if (width <= 0 || height <= 0) { x=0; y=0; width=GetSystemMetrics(0); height=GetSystemMetrics(1); }
+        IntPtr dw = GetDesktopWindow(); IntPtr dc = GetWindowDC(dw);
+        IntPtr mdc = CreateCompatibleDC(dc); IntPtr bmp = CreateCompatibleBitmap(dc, width, height);
+        IntPtr old = SelectObject(mdc, bmp);
+        BitBlt(mdc, 0, 0, width, height, dc, x, y, SRCCOPY);
+        Bitmap b = Image.FromHbitmap(bmp); string r = "";
+        using (MemoryStream ms = new MemoryStream()) { b.Save(ms, ImageFormat.Png); r = Convert.ToBase64String(ms.ToArray()); }
+        b.Dispose(); SelectObject(mdc, old); DeleteObject(bmp); DeleteDC(mdc); ReleaseDC(dw, dc);
+        return r;
+    }
+}
+"@ -ReferencedAssemblies "System.Drawing" -ErrorAction Stop
+try { Write-Output "OK:base64:$([ScreenCapture]::CaptureToBase64())" } catch { Write-Output "ERR:$($_.Exception.Message)"; exit 1 }`;
+  fs.writeFileSync(tmpPs1, inlinePs1, 'utf8');
+  _screenshotPs1Path = tmpPs1;
+  return tmpPs1;
+}
 
 function captureScreenBitBlt() {
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
+    const ps1Path = getScreenshotPs1Path();
     const ps = spawn('powershell.exe', [
       '-ExecutionPolicy', 'Bypass',
       '-WindowStyle', 'Hidden',
       '-NonInteractive',
-      '-File', SCREENSHOT_PS1
+      '-File', ps1Path
     ], { windowsHide: true });
 
     ps.stdout.on('data', (d) => { stdout += d.toString(); });
@@ -1244,7 +1329,17 @@ function createLicenseWindow() {
 
 // App lifecycle
 app.whenReady().then(async () => {
-  // Check for stored license key and validate
+  // ── Free Mode check first: if user has their own API keys, boot directly ──
+  const freeModeEnabled = store.get('freeModeEnabled', false);
+  const freeKeys = store.get('freeApiKeys', []);
+  if (freeModeEnabled && freeKeys.length > 0) {
+    console.log('[FreeMode] User-provided API keys found. Booting in Free Mode.');
+    FREE_MODE = true;
+    bootApp();
+    return;
+  }
+
+  // ── License server mode (default) ──
   const storedKey = store.get('licenseKey');
   if (storedKey) {
     console.log('[License] Validating stored key...');
@@ -1289,6 +1384,23 @@ ipcMain.handle('get-license-token', () => store.get('licenseToken'));
 ipcMain.handle('save-license-token', (event, token) => {
   store.set('licenseToken', token);
 });
+
+// ─── Free Mode IPC ────────────────────────────────────────────────────────────
+ipcMain.handle('get-free-mode', () => ({
+  enabled: store.get('freeModeEnabled', false),
+  keys: store.get('freeApiKeys', []),
+  activeIndex: store.get('freeApiKeyIndex', 0),
+}));
+
+ipcMain.handle('save-free-mode', (event, data) => {
+  store.set('freeModeEnabled', data.enabled);
+  store.set('freeApiKeys', data.keys || []);
+  store.set('freeApiKeyIndex', data.activeIndex || 0);
+  FREE_MODE = data.enabled && (data.keys || []).length > 0;
+  return true;
+});
+
+ipcMain.handle('get-free-mode-active', () => FREE_MODE);
 
 function bootApp() {
   createWindow();

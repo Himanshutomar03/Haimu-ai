@@ -1,10 +1,15 @@
-// HaimuAi Chat Module — Server-Proxied (no API keys in client)
+// HaimuAi Chat Module — Server-Proxied (no API keys in client) + Free Mode
 class AIChat {
   constructor() {
     // ---- Server proxy config (replaces direct Gemini calls) ----
     this.serverUrl = '';          // Set on init via IPC
     this.licenseToken = '';       // Set on init via IPC
     this.model = 'gemini-2.5-flash'; // Passed to server (server can override)
+
+    // ---- Free Mode config ----
+    this.freeModeEnabled = false;
+    this.freeApiKeys = [];        // [{ provider, key, label }]
+    this.freeApiKeyIndex = 0;     // Currently active key index
 
     this.conversationHistory = [];
     this.isStreaming = false;
@@ -34,6 +39,12 @@ class AIChat {
     try {
       this.serverUrl = await window.haimuai.getServerUrl();
       this.licenseToken = await window.haimuai.getLicenseToken();
+
+      // Load free mode config
+      const fm = await window.haimuai.getFreeMode();
+      this.freeModeEnabled = fm.enabled && (fm.keys || []).length > 0;
+      this.freeApiKeys = fm.keys || [];
+      this.freeApiKeyIndex = fm.activeIndex || 0;
     } catch (e) {
       console.error('[AIChat] Failed to get server config:', e);
     }
@@ -44,6 +55,64 @@ class AIChat {
     try {
       this.licenseToken = await window.haimuai.getLicenseToken();
     } catch (e) {}
+  }
+
+  /** Reload free-mode config from main process */
+  async _refreshFreeMode() {
+    try {
+      const fm = await window.haimuai.getFreeMode();
+      this.freeModeEnabled = fm.enabled && (fm.keys || []).length > 0;
+      this.freeApiKeys = fm.keys || [];
+      this.freeApiKeyIndex = fm.activeIndex || 0;
+    } catch (e) {}
+  }
+
+  /** Get the currently active free-mode API key */
+  _getActiveFreeKey() {
+    if (!this.freeApiKeys.length) return null;
+    return this.freeApiKeys[this.freeApiKeyIndex % this.freeApiKeys.length];
+  }
+
+  /**
+   * Rotate to the next free-mode API key.
+   * Returns true if a new key is available, false if all keys are exhausted.
+   * Marks the current key as exhausted so we don't loop back to it.
+   * The exhausted-key set auto-resets after 1 hour (Gemini free quota window).
+   */
+  _rotateFreeKey(exhaustedIndex) {
+    if (!this._exhaustedKeys) this._exhaustedKeys = new Set();
+    this._exhaustedKeys.add(exhaustedIndex ?? this.freeApiKeyIndex);
+
+    // Try each key in order to find a non-exhausted one
+    for (let i = 1; i <= this.freeApiKeys.length; i++) {
+      const nextIdx = (this.freeApiKeyIndex + i) % this.freeApiKeys.length;
+      if (!this._exhaustedKeys.has(nextIdx)) {
+        this.freeApiKeyIndex = nextIdx;
+        // Schedule exhausted-key reset after 1 hour
+        if (!this._exhaustedResetTimer) {
+          this._exhaustedResetTimer = setTimeout(() => {
+            this._exhaustedKeys.clear();
+            this._exhaustedResetTimer = null;
+            console.log('[FreeMode] Exhausted key list reset — quota windows may have refreshed.');
+          }, 60 * 60 * 1000);
+        }
+        // Notify UI about the switch
+        const newKey = this.freeApiKeys[nextIdx];
+        this._notifyKeySwitch(newKey?.label || `Key ${nextIdx + 1}`);
+        return true; // a fresh key is now active
+      }
+    }
+    return false; // all keys exhausted
+  }
+
+  /** Fire a UI toast when auto-switching to next key */
+  _notifyKeySwitch(label) {
+    try {
+      // Dispatch a custom DOM event that app.js can listen to for toast
+      document.dispatchEvent(new CustomEvent('free-key-switched', {
+        detail: { label }
+      }));
+    } catch (_) {}
   }
 
   /** Get the auth headers for every server request */
@@ -326,6 +395,22 @@ CRITICAL RULES:
 
   async sendMessage(message, command = 'general', language = 'javascript', onChunk = null) {
     await this._refreshToken();
+
+    // Free mode: use user-supplied API key directly
+    if (this.freeModeEnabled && this.freeApiKeys.length > 0) {
+      await this._refreshFreeMode();
+      const systemPrompt = this.getSystemPrompt(command, language);
+      if (this.interviewMode) this.interviewQuestionCount++;
+      this.conversationHistory.push({ role: 'user', content: message });
+      try {
+        return await this._sendGeminiDirectMessage(message, systemPrompt, onChunk);
+      } catch (error) {
+        this.isStreaming = false;
+        if (error.name === 'AbortError') return '[Response cancelled]';
+        throw error;
+      }
+    }
+
     if (!this.licenseToken) {
       throw new Error('License token missing. Please restart HaimuAi.');
     }
@@ -448,6 +533,155 @@ CRITICAL RULES:
     return this._sendServerMessage(message, systemPrompt, onChunk);
   }
 
+  // ============================================================
+  // FREE MODE — Direct Gemini API call using user's own key
+  // Auto-switches to next key on quota errors (429/403)
+  // ============================================================
+  async _sendGeminiDirectMessage(message, systemPrompt, onChunk) {
+    if (!this.freeApiKeys.length) {
+      throw new Error('No API key configured. Please add a key in Settings > API Keys.');
+    }
+
+    // Build Gemini messages format (shared across retries)
+    const contents = this.conversationHistory.map(h => ({
+      role: h.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: h.content }]
+    }));
+    const body = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+    };
+
+    this.isStreaming = true;
+    this.abortController = new AbortController();
+
+    // Try every key before giving up
+    const totalKeys = this.freeApiKeys.length;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < totalKeys; attempt++) {
+      const keyObj = this._getActiveFreeKey();
+      if (!keyObj?.key) break;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${keyObj.key}`;
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: this.abortController.signal,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+          if (onChunk) onChunk(text, text);
+          this.conversationHistory.push({ role: 'assistant', content: text });
+          this.isStreaming = false;
+          this.saveCurrentToSession();
+          return text;
+        }
+
+        // Parse error
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || `Gemini API error: ${response.status}`;
+        lastError = new Error(errMsg);
+
+        // Quota / rate-limit → auto-switch key and retry immediately
+        if (response.status === 429 || response.status === 403) {
+          const currentIdx = this.freeApiKeyIndex;
+          console.warn(`[FreeMode] Key "${keyObj.label || currentIdx}" quota hit (${response.status}). Trying next key…`);
+          const hasNext = this._rotateFreeKey(currentIdx);
+          if (!hasNext) break; // all keys exhausted
+          continue;           // retry with new key
+        }
+
+        // Non-quota error (bad key format, permission error, etc.) → don't retry
+        break;
+
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          this.isStreaming = false;
+          return '[Response cancelled]';
+        }
+        lastError = err;
+        break;
+      }
+    }
+
+    this.isStreaming = false;
+    throw lastError || new Error('All API keys exhausted. Please add more keys or wait for quota to reset.');
+  }
+
+  // ============================================================
+  // FREE MODE — Direct Gemini Vision (screenshot analysis)
+  // Auto-switches to next key on quota errors (429/403)
+  // ============================================================
+  async _analyzeGeminiDirectVision(imageDataArray, systemContent, question) {
+    if (!this.freeApiKeys.length) {
+      throw new Error('No API key configured. Please add a key in Settings > API Keys.');
+    }
+
+    // Build parts with all images (shared across retries)
+    const imageParts = imageDataArray.map(dataUrl => {
+      const [header, data] = dataUrl.split(',');
+      const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+      return { inline_data: { mime_type: mimeType, data } };
+    });
+    const body = {
+      system_instruction: { parts: [{ text: systemContent }] },
+      contents: [{
+        role: 'user',
+        parts: [...imageParts, { text: question }]
+      }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+    };
+
+    const totalKeys = this.freeApiKeys.length;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < totalKeys; attempt++) {
+      const keyObj = this._getActiveFreeKey();
+      if (!keyObj?.key) break;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${keyObj.key}`;
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Could not analyze screenshot(s).';
+        }
+
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || `Gemini Vision API error: ${response.status}`;
+        lastError = new Error(errMsg);
+
+        if (response.status === 429 || response.status === 403) {
+          const currentIdx = this.freeApiKeyIndex;
+          console.warn(`[FreeMode] Vision key "${keyObj.label || currentIdx}" quota hit (${response.status}). Trying next key…`);
+          const hasNext = this._rotateFreeKey(currentIdx);
+          if (!hasNext) break;
+          continue;
+        }
+        break;
+
+      } catch (err) {
+        lastError = err;
+        break;
+      }
+    }
+
+    throw lastError || new Error('All API keys exhausted. Please add more keys or wait for quota to reset.');
+  }
+
   // =============================================
   // Request Queue & Rate-Limit Helpers
   // =============================================
@@ -543,8 +777,14 @@ CRITICAL RULES:
     }
 
     let result;
-    // Always use server proxy for vision
-    result = await this._analyzeServerVision(imageDataArray, systemContent, effectiveQuestion, syncWithChat);
+    // Free mode: use direct Gemini API
+    if (this.freeModeEnabled && this.freeApiKeys.length > 0) {
+      await this._refreshFreeMode();
+      result = await this._analyzeGeminiDirectVision(imageDataArray, systemContent, effectiveQuestion);
+    } else {
+      // Always use server proxy for vision
+      result = await this._analyzeServerVision(imageDataArray, systemContent, effectiveQuestion, syncWithChat);
+    }
 
     // Add to conversation history so future messages have this context
     if (syncWithChat) {

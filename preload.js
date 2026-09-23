@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld('haimuai', {
   getLicenseToken: () => ipcRenderer.invoke('get-license-token'),
   saveLicenseToken: (token) => ipcRenderer.invoke('save-license-token', token),
 
+  // Free Mode (user-supplied API keys, no license needed)
+  getFreeMode: () => ipcRenderer.invoke('get-free-mode'),
+  saveFreeMode: (data) => ipcRenderer.invoke('save-free-mode', data),
+  getFreeModeActive: () => ipcRenderer.invoke('get-free-mode-active'),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),

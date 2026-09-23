@@ -50,6 +50,17 @@
       "node_modules/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "utils",
+        "to": "utils",
+        "filter": ["**/*.ps1", "**/*.js"]
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "utils/**/*.ps1"
+    ],
     "win": {
       "target": [
         {

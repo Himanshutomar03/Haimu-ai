@@ -287,10 +287,45 @@
         </button>
       </div>
       <div class="settings-body">
-        <!-- AI is handled server-side — no API key entry needed -->
+        <!-- API Keys Section (Free Mode) -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+            API Keys
+            <span class="settings-badge" id="freeModeStatusBadge">Server Mode</span>
+          </label>
+          <p class="settings-hint">Add your own Gemini API keys to use HaimuAi without a license. Keys rotate automatically on quota limits.</p>
+          <div class="api-keys-list" id="apiKeysList">
+            <!-- API key entries populated by JS -->
+          </div>
+          <div class="api-keys-add-row">
+            <input type="text" id="newApiKeyLabel" class="settings-input api-key-label-input" placeholder="Label (e.g. Key 1)">
+            <input type="text" id="newApiKeyValue" class="settings-input api-key-value-input" placeholder="AIza..." autocomplete="off" spellcheck="false">
+            <button class="api-key-add-btn" id="btnAddApiKey">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add
+            </button>
+          </div>
+          <div class="api-keys-actions">
+            <label class="switch" title="Enable Free Mode (use your own API keys)">
+              <input type="checkbox" id="settingFreeModeEnabled">
+              <span class="switch-slider"></span>
+            </label>
+            <span class="settings-hint-inline">Enable Free Mode (use keys above)</span>
+            <a href="#" class="api-key-get-link" id="btnGetFreeKey"
+               title="Get a free Gemini API key from Google AI Studio">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              Get free Gemini key
+            </a>
+          </div>
+        </div>
 
 
-        <!-- Theme -->
         <div class="settings-group">
           <label class="settings-label">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

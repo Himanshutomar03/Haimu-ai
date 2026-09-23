@@ -14,10 +14,28 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 **Latest Release: v3.1.0** — *Released September 21, 2026*
 
+### 🔑 Licensed Version (with HaimuAi Server)
+No API key needed — AI calls go through our server with your license key.
+
 | Type | Link | Size |
 |------|------|------|
 | 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.1.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Setup-3.1.0.exe) | ~74 MB |
 | 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Portable.exe) | ~74 MB |
+
+### 🆓 Free Mode (no activation key required)
+Use your own **free** Gemini API key — no license needed, no server, no payment.
+
+| Type | Link | Size |
+|------|------|------|
+| 🖥️ **Installer** | [HaimuAi-Setup-3.1.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Setup-3.1.0.exe) | ~74 MB |
+| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Portable.exe) | ~74 MB |
+
+**Free Mode Setup (3 steps):**
+1. Download & run **either** version above
+2. On the activation screen → close it → open **Settings** (⚙️ gear icon)
+3. Under **API Keys**: paste your Gemini API key → enable **Free Mode** → Save
+
+> 🔑 Get a **free** Gemini API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
 
