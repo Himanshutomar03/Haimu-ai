@@ -1,6 +1,6 @@
 {
   "name": "haimuai",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "HaimuAi v3 - Stealth AI Desktop Assistant with voice, screenshots, and AI-powered assistance",
   "main": "main.js",
   "scripts": {

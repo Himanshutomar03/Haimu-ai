@@ -12,42 +12,53 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 ## ⬇️ Download
 
-**Latest Release: v3.1.0** — *Released September 21, 2026*
+**Latest Release: v3.2.0** — *Released September 23, 2026*
 
 ### 🔑 Licensed Version (with HaimuAi Server)
 No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.1.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Setup-3.1.0.exe) | ~74 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Portable.exe) | ~74 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.2.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Setup-3.2.0.exe) | ~74 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Portable.exe) | ~74 MB |
 
-### 🆓 Free Mode (no activation key required)
-Use your own **free** Gemini API key — no license needed, no server, no payment.
+### 🆓 Free Mode — No Activation Key Required
+Use your own **free** Gemini API key — no license, no server, no payment. Add multiple keys for automatic failover.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.1.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Setup-3.1.0.exe) | ~74 MB |
-| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.1.0/HaimuAi-Portable.exe) | ~74 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.2.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Setup-3.2.0.exe) | ~74 MB |
+| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Portable.exe) | ~74 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
-2. On the activation screen → close it → open **Settings** (⚙️ gear icon)
-3. Under **API Keys**: paste your Gemini API key → enable **Free Mode** → Save
+2. On the activation screen → press **✕** to close → click **⚙️** gear icon to open Settings
+3. Under **API Keys** → paste your Gemini key → enable **Free Mode** → click **Save**
 
-> 🔑 Get a **free** Gemini API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+> 🔑 Get a **free** Gemini API key (no credit card) → [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+
+> 💡 **Tip:** Add 2–3 keys to enable automatic failover — HaimuAi switches instantly when one key hits its daily quota.
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
 
 ---
 
+## 🆕 What's New in v3.2.0
+
+- **🆓 Free Mode** — Run HaimuAi with your own Gemini API key(s). No license or activation key needed.
+- **🔑 Multiple API Keys** — Add unlimited keys in Settings → API Keys. Each key shows label, masked value, and current status.
+- **⚡ Auto Key Rotation** — When any key hits its daily quota (429/403), HaimuAi instantly switches to the next available key and retries the request seamlessly — no interruption, no error shown.
+- **🟡 Quota Badge** — Exhausted keys are visually marked "Quota Hit" in the Settings panel so you always know which keys are throttled.
+- **⏰ 1-Hour Auto-Reset** — Exhausted keys are automatically re-eligible after 1 hour (Gemini's free-tier quota window).
+- **📸 Screenshot Fix** — Packaged builds (NSIS installer, Portable .exe) now correctly run `screenshot.ps1` outside the ASAR archive. Fixes screenshot capture on all distributed builds.
+
+---
+
 ## 🆕 What's New in v3.1.0
 
-- **🛡️ Zero-Focus-Loss Screenshot** — Screen capture now uses Win32 GDI BitBlt (PowerShell) at the driver level. No window hide/show, no focus events, no activation signals. Completely undetectable.
-- **⚡ Always Active by Default** — `WS_EX_NOACTIVATE` is now enabled by default: clicking/typing in HaimuAi will NEVER steal OS-level focus from the underlying application (exam browser, IDE, etc.).
-- **🎯 No Focus Stealing on Capture** — The renderer no longer auto-focuses input fields after a screenshot is taken, preventing proctored apps from detecting a window switch.
-- **🔒 Stronger Stealth on Show** — When `alwaysActive` is on, the window now uses `showInactive()` instead of `show()` so no `WM_ACTIVATE` message is sent to the OS.
-- **🐛 Fixed** — "Window Lost Focus — Clicked Outside" violation triggered by the Capture button is now fully eliminated.
+- **🛡️ Zero-Focus-Loss Screenshot** — Screen capture now uses Win32 GDI BitBlt at the driver level. No window hide/show, no focus events.
+- **⚡ Always Active by Default** — `WS_EX_NOACTIVATE` enabled by default; clicking HaimuAi never steals OS focus.
+- **🔒 Stronger Stealth on Show** — `showInactive()` instead of `show()` prevents `WM_ACTIVATE` signals.
 
 ---
 
