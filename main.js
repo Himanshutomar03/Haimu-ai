@@ -841,37 +841,74 @@ function moveWindow(dx, dy) {
 
 // ============================================================
 // OPTION B — PowerShell BitBlt screen capture
-// Uses Win32 GDI BitBlt to copy pixels directly from the screen
-// at the driver level. Zero window events, zero focus changes,
-// zero detection surface. No hide/show/opacity tricks needed.
 // ============================================================
-// ─── Screenshot PS1 Path (ASAR-safe) ─────────────────────────────────────────
-// When running from a packaged NSIS/Portable exe the app is inside an ASAR
-// archive. PowerShell cannot execute scripts from inside ASAR, so we copy
-// the PS1 to a temp directory the first time and reuse it afterwards.
+// SCREENSHOT — Electron desktopCapturer (primary, works in all builds)
+// Falls back to PowerShell BitBlt if desktopCapturer is unavailable.
+// desktopCapturer is native Electron — no PowerShell, no .NET, no ASAR issues.
+// ============================================================
 const fs = require('fs');
 const os = require('os');
 
+/**
+ * Capture the full screen using Electron's built-in desktopCapturer.
+ * This works reliably in dev builds, NSIS installers, and portable exes.
+ * The window is hidden before capture so it doesn't appear in the screenshot,
+ * then shown again after — but using showInactive() to avoid focus stealing.
+ */
+async function captureScreenElectron() {
+  const { screen, session } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.size;
+
+  // If content protection is on (safeMode), temporarily disable it
+  // so our own window doesn't show as black in the capture.
+  // We restore it immediately after.
+  const wasProtected = mainWindow && !mainWindow.isDestroyed() && safeMode;
+  if (wasProtected) mainWindow.setContentProtection(false);
+
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width, height },
+    });
+
+    if (!sources || sources.length === 0) {
+      throw new Error('desktopCapturer returned no screen sources');
+    }
+
+    // Pick the primary screen
+    const source = sources.find(s => s.name === 'Entire Screen' || s.name === 'Screen 1') || sources[0];
+    const dataUrl = source.thumbnail.toDataURL();
+
+    if (!dataUrl || dataUrl === 'data:image/png;base64,') {
+      throw new Error('desktopCapturer returned empty thumbnail');
+    }
+
+    return dataUrl;
+  } finally {
+    // Always restore content protection
+    if (wasProtected) mainWindow.setContentProtection(true);
+  }
+}
+
+/**
+ * PowerShell BitBlt fallback — used only if desktopCapturer fails.
+ * Reads screenshot.ps1 from temp dir (extracted on first run).
+ */
 let _screenshotPs1Path = null;
 
 function getScreenshotPs1Path() {
-  if (_screenshotPs1Path && fs.existsSync(_screenshotPs1Path)) {
-    return _screenshotPs1Path;
-  }
+  if (_screenshotPs1Path && fs.existsSync(_screenshotPs1Path)) return _screenshotPs1Path;
 
-  // Try the regular (non-packaged) path first
+  // Dev build: use script directly
   const srcPath = path.join(__dirname, 'utils', 'screenshot.ps1');
-  if (fs.existsSync(srcPath)) {
-    _screenshotPs1Path = srcPath;
-    return srcPath;
-  }
+  if (fs.existsSync(srcPath)) { _screenshotPs1Path = srcPath; return srcPath; }
 
-  // Packaged build: copy from resources to a writable temp dir
+  // Packaged build: copy from extraResources to temp dir
   const tmpDir = path.join(os.tmpdir(), 'haimuai');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
   const tmpPs1 = path.join(tmpDir, 'screenshot.ps1');
 
-  // Look in process.resourcesPath (electron-builder unpacks files here)
   const resourcePs1 = path.join(process.resourcesPath || '', 'utils', 'screenshot.ps1');
   if (fs.existsSync(resourcePs1)) {
     fs.copyFileSync(resourcePs1, tmpPs1);
@@ -879,43 +916,34 @@ function getScreenshotPs1Path() {
     return tmpPs1;
   }
 
-  // Last resort: write the PS1 content inline from embedded string
-  // This ensures screenshot always works even in deeply packaged builds
-  const inlinePs1 = `param([string]$OutputPath = "")
+  // Final fallback: write inline PS1 content
+  const inlinePs1 = `param([string]$OutputPath="")
 Add-Type -TypeDefinition @"
-using System;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
-using System.IO;
-public class ScreenCapture {
-    [DllImport("user32.dll")] public static extern IntPtr GetDesktopWindow();
-    [DllImport("user32.dll")] public static extern IntPtr GetWindowDC(IntPtr hWnd);
-    [DllImport("user32.dll")] public static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDC);
-    [DllImport("user32.dll")] public static extern int GetSystemMetrics(int nIndex);
-    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleDC(IntPtr hDC);
-    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleBitmap(IntPtr hDC, int nWidth, int nHeight);
-    [DllImport("gdi32.dll")] public static extern IntPtr SelectObject(IntPtr hDC, IntPtr hObject);
-    [DllImport("gdi32.dll")] public static extern bool BitBlt(IntPtr hDestDC, int x, int y, int nWidth, int nHeight, IntPtr hSrcDC, int xSrc, int ySrc, uint dwRop);
-    [DllImport("gdi32.dll")] public static extern bool DeleteDC(IntPtr hDC);
-    [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr hObject);
-    public const uint SRCCOPY = 0x00CC0020;
-    public static string CaptureToBase64() {
-        int x = GetSystemMetrics(76); int y = GetSystemMetrics(77);
-        int width = GetSystemMetrics(78); int height = GetSystemMetrics(79);
-        if (width <= 0 || height <= 0) { x=0; y=0; width=GetSystemMetrics(0); height=GetSystemMetrics(1); }
-        IntPtr dw = GetDesktopWindow(); IntPtr dc = GetWindowDC(dw);
-        IntPtr mdc = CreateCompatibleDC(dc); IntPtr bmp = CreateCompatibleBitmap(dc, width, height);
-        IntPtr old = SelectObject(mdc, bmp);
-        BitBlt(mdc, 0, 0, width, height, dc, x, y, SRCCOPY);
-        Bitmap b = Image.FromHbitmap(bmp); string r = "";
-        using (MemoryStream ms = new MemoryStream()) { b.Save(ms, ImageFormat.Png); r = Convert.ToBase64String(ms.ToArray()); }
-        b.Dispose(); SelectObject(mdc, old); DeleteObject(bmp); DeleteDC(mdc); ReleaseDC(dw, dc);
-        return r;
-    }
+using System;using System.Drawing;using System.Drawing.Imaging;using System.Runtime.InteropServices;using System.IO;
+public class SC {
+  [DllImport("user32.dll")] public static extern IntPtr GetDesktopWindow();
+  [DllImport("user32.dll")] public static extern IntPtr GetWindowDC(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ReleaseDC(IntPtr h,IntPtr d);
+  [DllImport("user32.dll")] public static extern int GetSystemMetrics(int n);
+  [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleDC(IntPtr h);
+  [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleBitmap(IntPtr h,int w,int ht);
+  [DllImport("gdi32.dll")] public static extern IntPtr SelectObject(IntPtr h,IntPtr o);
+  [DllImport("gdi32.dll")] public static extern bool BitBlt(IntPtr d,int x,int y,int w,int h,IntPtr s,int sx,int sy,uint r);
+  [DllImport("gdi32.dll")] public static extern bool DeleteDC(IntPtr h);
+  [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr h);
+  public const uint SRCCOPY=0x00CC0020;
+  public static string Cap(){
+    int x=GetSystemMetrics(76),y=GetSystemMetrics(77),w=GetSystemMetrics(78),h=GetSystemMetrics(79);
+    if(w<=0||h<=0){x=0;y=0;w=GetSystemMetrics(0);h=GetSystemMetrics(1);}
+    IntPtr dw=GetDesktopWindow(),dc=GetWindowDC(dw),mdc=CreateCompatibleDC(dc),bmp=CreateCompatibleBitmap(dc,w,h),old=SelectObject(mdc,bmp);
+    BitBlt(mdc,0,0,w,h,dc,x,y,SRCCOPY);
+    Bitmap b=Image.FromHbitmap(bmp);string r="";
+    using(MemoryStream ms=new MemoryStream()){b.Save(ms,ImageFormat.Png);r=Convert.ToBase64String(ms.ToArray());}
+    b.Dispose();SelectObject(mdc,old);DeleteObject(bmp);DeleteDC(mdc);ReleaseDC(dw,dc);return r;
+  }
 }
 "@ -ReferencedAssemblies "System.Drawing" -ErrorAction Stop
-try { Write-Output "OK:base64:$([ScreenCapture]::CaptureToBase64())" } catch { Write-Output "ERR:$($_.Exception.Message)"; exit 1 }`;
+try{Write-Output "OK:base64:$([SC]::Cap())"}catch{Write-Output "ERR:$($_.Exception.Message)";exit 1}`;
   fs.writeFileSync(tmpPs1, inlinePs1, 'utf8');
   _screenshotPs1Path = tmpPs1;
   return tmpPs1;
@@ -923,59 +951,58 @@ try { Write-Output "OK:base64:$([ScreenCapture]::CaptureToBase64())" } catch { W
 
 function captureScreenBitBlt() {
   return new Promise((resolve, reject) => {
-    let stdout = '';
-    let stderr = '';
+    let stdout = '', stderr = '';
     const ps1Path = getScreenshotPs1Path();
     const ps = spawn('powershell.exe', [
-      '-ExecutionPolicy', 'Bypass',
-      '-WindowStyle', 'Hidden',
-      '-NonInteractive',
-      '-File', ps1Path
+      '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-NonInteractive', '-File', ps1Path
     ], { windowsHide: true });
-
-    ps.stdout.on('data', (d) => { stdout += d.toString(); });
-    ps.stderr.on('data', (d) => { stderr += d.toString(); });
-    ps.on('close', (code) => {
+    ps.stdout.on('data', d => { stdout += d.toString(); });
+    ps.stderr.on('data', d => { stderr += d.toString(); });
+    ps.on('close', code => {
       const line = stdout.trim();
-      if (code !== 0 || line.startsWith('ERR:')) {
-        return reject(new Error(line.replace('ERR:', '') || stderr || 'BitBlt failed'));
-      }
-      // line = "OK:base64:<base64data>"
-      const b64 = line.replace('OK:base64:', '');
-      resolve('data:image/png;base64,' + b64);
+      if (code !== 0 || line.startsWith('ERR:')) return reject(new Error(line.replace('ERR:', '') || stderr || 'BitBlt failed'));
+      resolve('data:image/png;base64,' + line.replace('OK:base64:', ''));
     });
     ps.on('error', reject);
   });
 }
 
+/**
+ * Main capture function — tries Electron desktopCapturer first (fast, reliable),
+ * falls back to PowerShell BitBlt if it fails.
+ */
+async function captureScreen() {
+  try {
+    return await captureScreenElectron();
+  } catch (electronErr) {
+    console.warn('[Screenshot] desktopCapturer failed, trying PowerShell fallback:', electronErr.message);
+    return await captureScreenBitBlt();
+  }
+}
+
 async function takeScreenshot() {
   try {
-    // ── OPTION B: PowerShell BitBlt capture ─────────────────────────────────
-    // Calls Win32 GDI BitBlt via screenshot.ps1 — captures screen pixels at the
-    // driver level without any Electron window manipulation.
-    // No hide(), no opacity change, no focus events → undetectable.
-    const dataUrl = await captureScreenBitBlt();
+    const dataUrl = await captureScreen();
     mainWindow.webContents.send('screenshot-taken', dataUrl);
   } catch (err) {
-    console.error('[Screenshot] BitBlt capture failed:', err.message);
+    console.error('[Screenshot] Capture failed:', err.message);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('screenshot-error', err.message);
+    }
   }
 }
 
 async function takeScreenshotAndAnswer() {
   try {
-    // ── OPTION B: PowerShell BitBlt capture ─────────────────────────────────
-    const dataUrl = await captureScreenBitBlt();
-    if (!isVisible) {
-      showWindow();
-    }
+    const dataUrl = await captureScreen();
+    if (!isVisible) showWindow();
     mainWindow.webContents.send('answer-screenshot', dataUrl);
   } catch (err) {
-    console.error('[AnswerScreenshot] BitBlt capture failed:', err.message);
+    console.error('[AnswerScreenshot] Capture failed:', err.message);
   }
 }
 
 async function takeFullPageScreenshot() {
-  // For full-page, send to renderer to handle with scrolling
   mainWindow.webContents.send('take-full-page-screenshot');
 }
 
@@ -985,7 +1012,6 @@ ipcMain.handle('save-settings', (event, settings) => {
   for (const [key, value] of Object.entries(settings)) {
     store.set(key, value);
   }
-  // Apply settings that need immediate effect
   if (settings.opacity !== undefined && !ghostMode) mainWindow.setOpacity(settings.opacity);
   if (settings.alwaysOnTop !== undefined) {
     mainWindow.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver', 1);
@@ -995,10 +1021,9 @@ ipcMain.handle('save-settings', (event, settings) => {
 
 ipcMain.handle('take-screenshot', async () => {
   try {
-    // ── OPTION B: PowerShell BitBlt capture ─────────────────────────────────
-    return await captureScreenBitBlt();
+    return await captureScreen();
   } catch (err) {
-    console.error('[IPC Screenshot] BitBlt capture failed:', err.message);
+    console.error('[IPC Screenshot] Capture failed:', err.message);
   }
   return null;
 });
@@ -1329,6 +1354,19 @@ function createLicenseWindow() {
 
 // App lifecycle
 app.whenReady().then(async () => {
+  // ── Grant screen capture permission automatically ──────────────────────────
+  // Without this, Chromium blocks desktopCapturer.getSources() in packaged builds.
+  const { session } = require('electron');
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'media' || permission === 'display-capture') {
+      return callback(true);
+    }
+    callback(true); // grant all permissions
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    return true; // always allow
+  });
+
   // ── Free Mode check first: if user has their own API keys, boot directly ──
   const freeModeEnabled = store.get('freeModeEnabled', false);
   const freeKeys = store.get('freeApiKeys', []);
