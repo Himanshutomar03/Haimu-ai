@@ -12,23 +12,23 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 ## ⬇️ Download
 
-**Latest Release: v3.2.0** — *Released September 23, 2026*
+**Latest Release: v3.2.1** — *Released September 24, 2026*
 
 ### 🔑 Licensed Version (with HaimuAi Server)
 No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.2.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Setup-3.2.0.exe) | ~74 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Portable.exe) | ~74 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.2.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Setup-3.2.1.exe) | ~78 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Portable.exe) | ~71 MB |
 
 ### 🆓 Free Mode — No Activation Key Required
 Use your own **free** Gemini API key — no license, no server, no payment. Add multiple keys for automatic failover.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.2.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Setup-3.2.0.exe) | ~74 MB |
-| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.0/HaimuAi-Portable.exe) | ~74 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.2.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Setup-3.2.1.exe) | ~78 MB |
+| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Portable.exe) | ~71 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
@@ -40,6 +40,15 @@ Use your own **free** Gemini API key — no license, no server, no payment. Add 
 > 💡 **Tip:** Add 2–3 keys to enable automatic failover — HaimuAi switches instantly when one key hits its daily quota.
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
+
+---
+
+## 🆕 What's New in v3.2.1 — Screenshot Fix
+
+- **📸 Screenshot Fixed** — Capture now works in **all** packaged builds (NSIS installer, Portable, dev). Switched from PowerShell BitBlt to Electron's native `desktopCapturer` API.
+- **🔒 Permission Auto-Grant** — Screen capture permission is now automatically granted on startup so Chromium never silently blocks capture.
+- **🛡️ SafeMode Compatibility** — Content protection is temporarily lifted during capture and immediately restored, so screenshots work even in stealth/safe mode.
+- **🧹 Code Cleanup** — Removed duplicate IPC handlers that caused silent conflicts in packaged builds.
 
 ---
 
