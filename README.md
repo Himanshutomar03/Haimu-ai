@@ -12,23 +12,23 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 ## ⬇️ Download
 
-**Latest Release: v3.2.1** — *Released September 24, 2026*
+**Latest Release: v3.2.2** — *Released September 24, 2026*
 
 ### 🔑 Licensed Version (with HaimuAi Server)
 No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.2.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Setup-3.2.1.exe) | ~78 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Portable.exe) | ~71 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Setup-3.2.2.exe) | ~78 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Portable.exe) | ~71 MB |
 
 ### 🆓 Free Mode — No Activation Key Required
 Use your own **free** Gemini API key — no license, no server, no payment. Add multiple keys for automatic failover.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.2.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Setup-3.2.1.exe) | ~78 MB |
-| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.1/HaimuAi-Portable.exe) | ~71 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Setup-3.2.2.exe) | ~78 MB |
+| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Portable.exe) | ~71 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
@@ -40,6 +40,16 @@ Use your own **free** Gemini API key — no license, no server, no payment. Add 
 > 💡 **Tip:** Add 2–3 keys to enable automatic failover — HaimuAi switches instantly when one key hits its daily quota.
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
+
+---
+
+## 🆕 What's New in v3.2.2 — Zero-Focus Screenshot
+
+- **🕵️ True Stealth Capture** — Screenshot now uses **PowerShell BitBlt as primary** (runs in a completely separate OS process). Zero window messages, zero `WM_ACTIVATE` events, zero Chromium involvement. Exam browsers cannot detect it.
+- **🚫 No More Focus Warning** — Previous versions called `setContentProtection(false)` which sent OS-level window repaint messages detected as focus loss. This is now completely removed.
+- **⚡ Instant First Capture** — PS1 script is pre-warmed on app startup so there's no delay on the first screenshot.
+- **🛡️ 10s Safety Timeout** — If PowerShell hangs for any reason, it's automatically killed after 10 seconds and the fallback kicks in.
+- **🔄 Silent Fallback** — If PowerShell unavailable, falls back to `desktopCapturer` without touching any window state.
 
 ---
 
