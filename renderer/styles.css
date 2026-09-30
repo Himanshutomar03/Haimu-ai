@@ -1846,6 +1846,214 @@ kbd {
 }
 
 /* ============================================
+   Settings — Connections Section
+   ============================================ */
+.settings-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 14px 0 18px;
+}
+
+.connection-group {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  transition: border-color var(--transition-fast);
+}
+
+.connection-group.linked {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.connection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.connection-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.connection-provider-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.chatgpt-icon {
+  background: rgba(16, 163, 127, 0.15);
+  color: #10a37f;
+  border: 1px solid rgba(16, 163, 127, 0.3);
+}
+
+.connection-group.linked .chatgpt-icon {
+  background: rgba(16, 163, 127, 0.25);
+  box-shadow: 0 0 10px rgba(16, 163, 127, 0.2);
+}
+
+.connection-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.connection-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.connection-status {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.connection-status.linked-status {
+  color: var(--success);
+}
+
+.connection-status.linked-status::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: pulse 2s infinite;
+}
+
+.connection-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.connection-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid rgba(16, 163, 127, 0.5);
+  background: rgba(16, 163, 127, 0.1);
+  color: #10a37f;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-main);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.connection-link-btn:hover {
+  background: rgba(16, 163, 127, 0.22);
+  border-color: rgba(16, 163, 127, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 163, 127, 0.25);
+}
+
+.connection-unlink-btn {
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.connection-unlink-btn:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.connection-group .settings-hint {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.connection-linking-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--warning);
+  animation: slideUp 0.2s ease;
+}
+
+.connection-confirm-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.connection-confirm-btn:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: var(--success);
+}
+
+/* Ghost mode: keep connection buttons functional */
+.connection-link-btn,
+.connection-unlink-btn,
+.connection-confirm-btn,
+.connection-group,
+.connection-provider-icon,
+.connection-row,
+.settings-section-title,
+.settings-divider {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+
+
+/* ============================================
    Screenshot Modal
    ============================================ */
 .screenshot-modal {
@@ -3354,6 +3562,158 @@ textarea.voice-active {
 @keyframes alwaysActivePulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(245, 158, 11, 0.3); }
   50% { opacity: 0.7; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
+}
+
+/* ── Affinity Bypass Indicator ───────────────────────────────────────── */
+/* Hidden by default — shown when SEB is detected */
+.affinity-indicator {
+  display: none;
+}
+.affinity-indicator.active {
+  display: flex;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  animation: affinityPulse 2s infinite;
+}
+.affinity-indicator.injecting {
+  display: flex;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  animation: affinitySpinPulse 1.2s infinite;
+}
+.affinity-indicator.cleared {
+  display: flex;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  animation: none;
+}
+
+@keyframes affinityPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(56, 189, 248, 0.4); }
+  50%       { opacity: 0.5; box-shadow: 0 0 10px rgba(56, 189, 248, 0.7); }
+}
+@keyframes affinitySpinPulse {
+  0%   { opacity: 1;   transform: rotate(0deg); }
+  50%  { opacity: 0.6; transform: rotate(180deg); }
+  100% { opacity: 1;   transform: rotate(360deg); }
+}
+
+/* ── SEB Defense Banner ──────────────────────────────────────────────── */
+.seb-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.97), rgba(49, 46, 129, 0.97));
+  border-top: 1px solid rgba(99, 102, 241, 0.35);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  animation: sebBannerSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -2px 16px rgba(99, 102, 241, 0.15);
+  position: relative;
+  z-index: 60;
+}
+.seb-banner.active {
+  display: flex;
+}
+
+@keyframes sebBannerSlide {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.seb-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #c7d2fe;
+}
+.seb-banner-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #818cf8;
+  box-shadow: 0 0 6px rgba(129, 140, 248, 0.7);
+  animation: sebDotPulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes sebDotPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(129, 140, 248, 0.5); transform: scale(1); }
+  50%       { box-shadow: 0 0 10px rgba(129, 140, 248, 0.9), 0 0 20px rgba(129, 140, 248, 0.3); transform: scale(1.25); }
+}
+.seb-banner-status {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #a5b4fc;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+}
+.seb-banner-status.injecting {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+}
+.seb-banner-status.cleared {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.seb-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.seb-reinject-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-family: var(--font-main);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.seb-reinject-btn:hover {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #e0e7ff;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+}
+.seb-reinject-btn:active {
+  transform: scale(0.96);
+}
+.seb-reinject-btn svg {
+  animation: none;
+  transition: transform 0.3s ease;
+}
+.seb-reinject-btn.spinning svg {
+  animation: sebReinjectSpin 0.8s linear infinite;
+}
+@keyframes sebReinjectSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Ghost mode: hide SEB banner slightly */
+body.ghost-mode .seb-banner {
+  opacity: 0.12;
+  transition: opacity 0.3s ease;
+}
+body.ghost-mode .seb-banner:hover {
+  opacity: 0.55;
 }
 
 /* Inline hint text next to settings labels */

@@ -44,6 +44,13 @@ contextBridge.exposeInMainWorld('haimuai', {
   toggleAlwaysActive: () => ipcRenderer.invoke('toggle-always-active'),
   getAlwaysActive: () => ipcRenderer.invoke('get-always-active'),
 
+  // ── Affinity Bypass — clears target's WDA_EXCLUDEFROMCAPTURE ──
+  getAffinityStatus: () => ipcRenderer.invoke('get-affinity-status'),
+  forceAffinityReinject: () => ipcRenderer.invoke('force-affinity-reinject'),
+  captureTargetWindow: () => ipcRenderer.invoke('capture-target-window'),
+  startAffinityBypass: () => ipcRenderer.invoke('start-affinity-bypass'),
+  stopAffinityBypass: () => ipcRenderer.invoke('stop-affinity-bypass'),
+
   // Event listeners
   onSafeModeChanged: (callback) => ipcRenderer.on('safe-mode-changed', (_, value) => callback(value)),
   onInteractionSafeModeChanged: (callback) => ipcRenderer.on('interaction-safe-mode-changed', (_, value) => callback(value)),
@@ -58,7 +65,10 @@ contextBridge.exposeInMainWorld('haimuai', {
   onAnswerScreenshot: (callback) => ipcRenderer.on('answer-screenshot', (_, data) => callback(data)),
   onToggleListen: (callback) => ipcRenderer.on('toggle-listen', () => callback()),
   onLicenseRevoked: (callback) => ipcRenderer.on('license-revoked', (_, reason) => callback(reason)),
+  onAffinityStatus: (callback) => ipcRenderer.on('affinity-status', (_, status) => callback(status)),
+  onSebModeChanged: (callback) => ipcRenderer.on('seb-mode-changed', (_, active) => callback(active)),
 
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
 });
+

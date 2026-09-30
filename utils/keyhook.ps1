@@ -28,6 +28,7 @@ public class LowLevelKeyHook {
     private const int VK_RMENU    = 0xA5;  // Right Alt
     private const int VK_L        = 0x4C;  // L key
     private const int VK_A        = 0x41;  // A key
+    private const int VK_F        = 0x46;  // F key
 
     private static IntPtr hookId       = IntPtr.Zero;
     private static bool   shiftHeld    = false;
@@ -142,6 +143,12 @@ public class LowLevelKeyHook {
                 Emit("ANSWER");
                 return (IntPtr)1;
             }
+
+            // Ctrl + Shift + F -> AFFINITY_BYPASS (force re-inject)
+            if (vk == VK_F && ctrlHeld && shiftHeld && isDown) {
+                Emit("AFFINITY_BYPASS");
+                return (IntPtr)1;
+            }
         }
         return CallNextHookEx(hookId, nCode, wParam, lParam);
     }
@@ -157,7 +164,7 @@ public class LowLevelKeyHook {
             return;
         }
 
-        Console.Error.WriteLine("Hook active: Ctrl+Shift+Space=toggle, Ctrl+Shift+A=alwaysActive");
+        Console.Error.WriteLine("Hook active: Ctrl+Shift+Space=toggle, Ctrl+Shift+A=alwaysActive, Ctrl+Shift+F=affinityBypass");
         Console.Error.Flush();
 
         MSG msg;

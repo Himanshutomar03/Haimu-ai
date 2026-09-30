@@ -285,7 +285,74 @@ class SettingsManager {
       e.preventDefault();
       window.open('https://aistudio.google.com/apikey', '_blank');
     });
+
+    // ChatGPT connection
+    this.bindChatGPTConnection();
   }
+
+  // ============================================================
+  // ChatGPT Connection (opens chatgpt.com in system browser)
+  // ============================================================
+  bindChatGPTConnection() {
+    // Restore persisted state
+    const linked = localStorage.getItem('haimuai_chatgpt_linked') === 'true';
+    this._chatgptLinked = linked;
+    this._updateChatGPTUI();
+
+    document.getElementById('btnLinkChatGPT')?.addEventListener('click', () => {
+      // Open ChatGPT in default browser
+      window.open('https://chatgpt.com', '_blank');
+
+      // Show the "waiting for confirmation" notice
+      const notice = document.getElementById('chatgptLinkingNotice');
+      const hint   = document.getElementById('chatgptLinkHint');
+      if (notice) notice.style.display = 'flex';
+      if (hint)   hint.style.display   = 'none';
+    });
+
+    document.getElementById('btnConfirmChatGPT')?.addEventListener('click', () => {
+      this._chatgptLinked = true;
+      localStorage.setItem('haimuai_chatgpt_linked', 'true');
+      this._updateChatGPTUI();
+
+      // Show a toast if available
+      window.app?.showToast('✅ ChatGPT linked successfully!', 'success');
+    });
+
+    document.getElementById('btnUnlinkChatGPT')?.addEventListener('click', () => {
+      this._chatgptLinked = false;
+      localStorage.removeItem('haimuai_chatgpt_linked');
+      this._updateChatGPTUI();
+      window.app?.showToast('ChatGPT unlinked.', 'info');
+    });
+  }
+
+  _updateChatGPTUI() {
+    const group   = document.getElementById('chatgptConnectionGroup');
+    const status  = document.getElementById('chatgptStatus');
+    const linkBtn = document.getElementById('btnLinkChatGPT');
+    const unlinkBtn = document.getElementById('btnUnlinkChatGPT');
+    const notice  = document.getElementById('chatgptLinkingNotice');
+    const hint    = document.getElementById('chatgptLinkHint');
+
+    if (this._chatgptLinked) {
+      if (group)    group.classList.add('linked');
+      if (status)   { status.textContent = 'Linked'; status.className = 'connection-status linked-status'; }
+      if (linkBtn)  linkBtn.style.display = 'none';
+      if (unlinkBtn) unlinkBtn.style.display = 'inline-flex';
+      if (notice)   notice.style.display = 'none';
+      if (hint)     { hint.textContent = 'Your ChatGPT account is linked. You can chat at chatgpt.com or unlink below.'; hint.style.display = 'block'; }
+    } else {
+      if (group)    group.classList.remove('linked');
+      if (status)   { status.textContent = 'Not linked'; status.className = 'connection-status'; }
+      if (linkBtn)  linkBtn.style.display = 'flex';
+      if (unlinkBtn) unlinkBtn.style.display = 'none';
+      if (notice)   notice.style.display = 'none';
+      if (hint)     { hint.textContent = 'Link your ChatGPT account to use it as an AI provider. Clicking "Link ChatGPT" opens ChatGPT in your browser.'; hint.style.display = 'block'; }
+    }
+  }
+
+
 
   open() {
     this.isOpen = true;

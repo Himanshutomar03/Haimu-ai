@@ -31,6 +31,7 @@ class HaimuAiApp {
     this.setupInterview();
     this.setupInterviewPdf();
     this.setupHistory();
+    this.setupAffinityBypassUI();
 
     // Load saved resume
     const savedResume = localStorage.getItem('haimuai_resume');
@@ -1848,6 +1849,16 @@ class HaimuAiApp {
     window.haimuai.onToggleListen(() => {
       this.toggleListen();
     });
+
+    // ── Affinity Bypass Status ───────────────────────────────────────
+    window.haimuai.onAffinityStatus((status) => {
+      this.updateAffinityUI(status);
+    });
+
+    // ── SEB Defense Mode ─────────────────────────────────────────────
+    window.haimuai.onSebModeChanged((active) => {
+      this.updateSebBannerUI(active, null);
+    });
   }
 
   // ========================================
@@ -2047,6 +2058,104 @@ class HaimuAiApp {
     }
     const timerEl = document.getElementById('listenTimer');
     if (timerEl) timerEl.textContent = '0:00';
+  }
+
+  // ========================================
+  // Affinity Bypass UI
+  // ========================================
+
+  /**
+   * Updates the title bar affinity shield icon.
+   * States: hidden | active (cyan) | injecting (amber spin) | cleared (green)
+   */
+  updateAffinityUI(status) {
+    const indicator = document.getElementById('affinityIndicator');
+    if (!indicator) return;
+
+    // Remove all state classes
+    indicator.classList.remove('active', 'injecting', 'cleared');
+
+    if (!status || status.status === 'no-target' || status.status === 'unknown') {
+      indicator.style.display = 'none';
+      indicator.title = 'Affinity Bypass — idle';
+      return;
+    }
+
+    const injCount = status.injectionCount || 0;
+    const dllReady = status.dllReady ? 'DLL' : 'shellcode';
+
+    if (status.status === 'injecting') {
+      indicator.classList.add('injecting');
+      indicator.title = `Affinity Bypass — Injecting (${dllReady}, #${injCount})`;
+    } else if (status.status === 'cleared') {
+      indicator.classList.add('cleared');
+      indicator.title = `Affinity Bypass — Protection cleared ✓ (${injCount} injections)`;
+    } else {
+      indicator.classList.add('active');
+      indicator.title = `Affinity Bypass — Active (PID ${status.pid || '?'})`;
+    }
+
+    // Also update SEB banner status text
+    this.updateSebBannerUI(true, status);
+  }
+
+  /**
+   * Shows/hides the SEB defense banner and updates its status badge.
+   */
+  updateSebBannerUI(active, affinityStatus) {
+    const banner = document.getElementById('sebBanner');
+    const statusEl = document.getElementById('sebBannerStatus');
+    if (!banner) return;
+
+    if (!active) {
+      banner.classList.remove('active');
+      return;
+    }
+
+    banner.classList.add('active');
+
+    if (statusEl && affinityStatus) {
+      statusEl.classList.remove('injecting', 'cleared');
+      if (affinityStatus.status === 'injecting') {
+        const mode = affinityStatus.dllReady ? 'DLL' : 'shellcode';
+        statusEl.textContent = `Injecting (${mode} #${affinityStatus.injectionCount})`;
+        statusEl.classList.add('injecting');
+      } else if (affinityStatus.status === 'cleared') {
+        statusEl.textContent = '✓ Protection cleared';
+        statusEl.classList.add('cleared');
+      } else if (affinityStatus.status === 'no-target') {
+        statusEl.textContent = 'Scanning...';
+      } else {
+        statusEl.textContent = `PID ${affinityStatus.pid || '?'}`;
+      }
+    }
+  }
+
+  /**
+   * Set up the SEB banner Re-inject button.
+   * Called once during app init.
+   */
+  setupAffinityBypassUI() {
+    const btn = document.getElementById('btnSebReinject');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+      btn.classList.add('spinning');
+      btn.disabled = true;
+      this.showToast('🛡️ Re-injecting affinity bypass...', 'info');
+
+      try {
+        const ok = await window.haimuai.forceAffinityReinject();
+        this.showToast(ok ? '✅ Affinity bypass re-injected' : '⚠️ Re-inject failed — no target process', ok ? 'success' : 'warning');
+      } catch (e) {
+        this.showToast('❌ Re-inject error: ' + e.message, 'error');
+      } finally {
+        setTimeout(() => {
+          btn.classList.remove('spinning');
+          btn.disabled = false;
+        }, 2000);
+      }
+    });
   }
 }
 

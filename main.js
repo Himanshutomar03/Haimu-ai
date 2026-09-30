@@ -10,10 +10,20 @@ app.commandLine.appendSwitch('no-prefetch-dns');      // disable speculative DNS
 app.commandLine.appendSwitch('dns-prefetch-disable'); // belt-and-suspenders
 // Force Chromium to always use the current OS DNS resolver (respects WireGuard)
 app.commandLine.appendSwitch('host-resolver-rules', '');
+
+// ── SEB Evasion: disable Chromium internals that SEB scans for ──────────────
+// SEB checks for remote debugging ports, automation flags, and certain blink
+// features. Disabling them reduces our detection surface inside SEB's sandbox.
+app.commandLine.appendSwitch('disable-remote-debugging-port');
+app.commandLine.appendSwitch('no-sandbox');               // some SEB builds block sandboxed Chromium
+app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors,AutomationControlled');
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('disable-infobars');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
 const Store = require('electron-store');
 const { applyFullStealth, restoreCapture, excludeFromCapture, applyNoActivate, restoreActivate } = require('./utils/stealth');
+const { startAffinityBypass, stopAffinityBypass, getAffinityStatus, forceReInject, captureTarget, captureTargetWindow } = require('./utils/affinity-bypass');
 
 // Disguise process title to avoid detection
 process.title = 'Runtime Broker';
@@ -585,6 +595,9 @@ function handleHookEvent(event) {
     case 'SETTINGS':        showWindow(); mainWindow?.webContents.send('open-settings'); break;
     case 'FULLSCREEN':      if (mainWindow) mainWindow.setFullScreen(!mainWindow.isFullScreen()); break;
 
+    // ---- Affinity Bypass ----
+    case 'AFFINITY_BYPASS': forceReInject(); break;
+
     // ---- Move ----
     case 'MOVE_LEFT':       moveWindow(-20, 0); break;
     case 'MOVE_RIGHT':      moveWindow(20, 0); break;
@@ -698,14 +711,132 @@ function applyAntiKillProtection() {
 // browsers cannot push us behind their fullscreen window.
 // ============================================================
 let focusInterval = null;
+let sebActive = false;         // true when SEB process is detected
+let sebWatcherInterval = null; // polls for SEB every 3s
+
+// SEB process names to watch for
+const SEB_PROCESS_NAMES = [
+  'SafeExamBrowser', 'seb', 'SEB',
+  'RCBrowserLockDown', 'LockDownBrowser',
+  'Respondus', 'respondus',
+  'Proctorio', 'proctorio',
+  'ExamSoft', 'Examplify',
+  'ProctorU', 'Honorlock',
+];
+
+/**
+ * Detects whether SEB or any lockdown browser process is currently running.
+ * Uses tasklist (faster than WMI) — runs in a hidden shell, zero UI.
+ */
+async function detectSEB() {
+  if (process.platform !== 'win32') return false;
+  return new Promise((resolve) => {
+    const { execFile } = require('child_process');
+    execFile('tasklist', ['/NH', '/FO', 'CSV'], {
+      windowsHide: true,
+      timeout: 3000,
+    }, (err, stdout) => {
+      if (err) { resolve(false); return; }
+      const lower = stdout.toLowerCase();
+      const found = SEB_PROCESS_NAMES.some(n => lower.includes(n.toLowerCase()));
+      resolve(found);
+    });
+  });
+}
+
+/**
+ * Enter SEB high-defense mode:
+ * - Focus enforcement tightened to 500ms
+ * - Native HWND topmost re-enforced every 1s
+ * - WS_EX_NOACTIVATE re-applied so SEB doesn't detect a focus switch
+ */
+function enterSEBDefenseMode() {
+  if (sebActive) return;   // already active
+  sebActive = true;
+  console.log('[SEB] SafeExamBrowser detected — entering high-defense mode');
+
+  // Tighten focus enforcement interval to 500ms
+  stopFocusEnforcement();
+  startFocusEnforcement();  // restarts with new sebActive=true → 500ms interval
+
+  // Re-apply NOACTIVATE so SEB won't see us as a focus-stealing window
+  if (mainWindow && !mainWindow.isDestroyed() && alwaysActive) {
+    applyNoActivate(mainWindow);
+  }
+
+  // ── AFFINITY BYPASS: Start clearing SEB's capture protection ──
+  startAffinityBypass((status) => {
+    console.log('[AffinityBypass] Status:', JSON.stringify(status));
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('affinity-status', status);
+    }
+  });
+
+  // Notify renderer so it can show a subtle status update (optional)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('seb-mode-changed', true);
+  }
+}
+
+function exitSEBDefenseMode() {
+  if (!sebActive) return;
+  sebActive = false;
+  console.log('[SEB] SafeExamBrowser no longer detected — returning to normal mode');
+
+  // Restore normal 2s enforcement interval
+  stopFocusEnforcement();
+  startFocusEnforcement();
+
+  // Stop affinity bypass when SEB exits
+  stopAffinityBypass();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('seb-mode-changed', false);
+  }
+}
+
+/**
+ * Background SEB watcher — polls every 3 seconds.
+ * Automatically switches defense mode based on whether SEB is running.
+ */
+function startSEBWatcher() {
+  if (sebWatcherInterval) return;
+  sebWatcherInterval = setInterval(async () => {
+    if (!mainWindow || mainWindow.isDestroyed() || app.isQuitting) return;
+    const detected = await detectSEB();
+    if (detected && !sebActive) {
+      enterSEBDefenseMode();
+    } else if (!detected && sebActive) {
+      exitSEBDefenseMode();
+    }
+  }, 3000);
+}
+
+function stopSEBWatcher() {
+  if (sebWatcherInterval) {
+    clearInterval(sebWatcherInterval);
+    sebWatcherInterval = null;
+  }
+}
 
 function startFocusEnforcement() {
   if (focusInterval) return;
+  // Use 500ms when SEB is active, 2000ms otherwise
+  const intervalMs = sebActive ? 500 : 2000;
   focusInterval = setInterval(() => {
     if (!mainWindow || mainWindow.isDestroyed() || !isVisible) return;
     try {
       // Re-assert 'screen-saver' level (highest z-order)
       mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+
+      // Under SEB: also enforce at the native Win32 level every other tick
+      if (sebActive) {
+        enforceTopmostNative();
+        // If SEB somehow managed to hide our window, show it again
+        if (!mainWindow.isVisible() && isVisible) {
+          mainWindow.showInactive();
+        }
+      }
 
       // If somehow we got minimized, restore
       if (mainWindow.isMinimized()) {
@@ -714,7 +845,7 @@ function startFocusEnforcement() {
     } catch (e) {
       // Window might be destroyed, ignore
     }
-  }, 2000);
+  }, intervalMs);
 }
 
 function stopFocusEnforcement() {
@@ -1004,10 +1135,32 @@ async function captureScreen() {
   }
 }
 
+/**
+ * Capture the target window specifically using PrintWindow API.
+ * This is used after affinity has been cleared to get a direct
+ * capture of the exam window content.
+ * Falls back to full BitBlt if PrintWindow fails.
+ */
+async function captureTargetScreen() {
+  const status = getAffinityStatus();
+  if (status.targetPid) {
+    try {
+      console.log(`[Screenshot] Attempting PrintWindow capture on PID ${status.targetPid}`);
+      return await captureTarget();
+    } catch (err) {
+      console.warn('[Screenshot] PrintWindow failed, falling back to BitBlt:', err.message);
+    }
+  }
+  // Fallback to normal capture
+  return await captureScreen();
+}
+
 
 async function takeScreenshot() {
   try {
-    const dataUrl = await captureScreen();
+    // When SEB is active and affinity bypass is running, use PrintWindow
+    // to capture the target window directly (works after affinity is cleared)
+    const dataUrl = sebActive ? await captureTargetScreen() : await captureScreen();
     mainWindow.webContents.send('screenshot-taken', dataUrl);
   } catch (err) {
     console.error('[Screenshot] Capture failed:', err.message);
@@ -1019,7 +1172,7 @@ async function takeScreenshot() {
 
 async function takeScreenshotAndAnswer() {
   try {
-    const dataUrl = await captureScreen();
+    const dataUrl = sebActive ? await captureTargetScreen() : await captureScreen();
     if (!isVisible) showWindow();
     mainWindow.webContents.send('answer-screenshot', dataUrl);
   } catch (err) {
@@ -1143,6 +1296,36 @@ ipcMain.handle('toggle-safe-mode', () => {
 
 ipcMain.handle('get-safe-mode', () => safeMode);
 
+// ─── Affinity Bypass IPC ──────────────────────────────────────────────────
+ipcMain.handle('get-affinity-status', () => getAffinityStatus());
+
+ipcMain.handle('force-affinity-reinject', async () => {
+  return await forceReInject();
+});
+
+ipcMain.handle('capture-target-window', async () => {
+  try {
+    return await captureTargetScreen();
+  } catch (err) {
+    console.error('[IPC] Target capture failed:', err.message);
+    return null;
+  }
+});
+
+ipcMain.handle('start-affinity-bypass', () => {
+  startAffinityBypass((status) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('affinity-status', status);
+    }
+  });
+  return true;
+});
+
+ipcMain.handle('stop-affinity-bypass', () => {
+  stopAffinityBypass();
+  return true;
+});
+
 ipcMain.handle('toggle-ghost-mode', () => {
   toggleGhostMode();
   return ghostMode;
@@ -1262,6 +1445,9 @@ function gracefulRestart() {
   // Stop focus enforcement
   stopFocusEnforcement();
 
+  // Stop affinity bypass
+  stopAffinityBypass();
+
   // Stop keyhook
   stopKeyHook();
 
@@ -1305,6 +1491,9 @@ function forceQuit() {
   // Stop focus enforcement
   stopFocusEnforcement();
 
+  // Stop affinity bypass
+  stopAffinityBypass();
+
   // Stop keyhook
   stopKeyHook();
 
@@ -1312,13 +1501,13 @@ function forceQuit() {
   if (guardianProcess) { try { guardianProcess.kill('SIGKILL'); } catch(e) {} guardianProcess = null; }
   if (immortalGuardianProcess) { try { immortalGuardianProcess.kill('SIGKILL'); } catch(e) {} immortalGuardianProcess = null; }
 
-  // Kill ALL powershell processes running guardian/watchdog scripts via taskkill
+  // Kill ALL powershell processes running guardian/watchdog/affinity scripts via taskkill
   if (process.platform === 'win32') {
     try {
       require('child_process').execFileSync('powershell.exe', [
         '-ExecutionPolicy', 'Bypass', '-NonInteractive', '-WindowStyle', 'Hidden',
         '-Command',
-        `Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='wscript.exe'" | Where-Object { $_.CommandLine -match 'guardian|watchdog|immortal|wsh_helper' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`
+        `Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='wscript.exe'" | Where-Object { $_.CommandLine -match 'guardian|watchdog|immortal|wsh_helper|affinity|AffHook' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`
       ], { timeout: 4000, windowsHide: true });
     } catch(e) {}
 
@@ -1481,11 +1670,24 @@ function bootApp() {
   // Start guardian FIRST — so it survives even if app is force-quit immediately
   startGuardian();
 
+  // ── Start Affinity Bypass watchdog ──
+  // Continuously monitors for SEB/lockdown browsers and clears their
+  // WDA_EXCLUDEFROMCAPTURE protection so screenshots work
+  startAffinityBypass((status) => {
+    console.log('[AffinityBypass] Status:', JSON.stringify(status));
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('affinity-status', status);
+    }
+  });
+
   // Start watchdog — relaunches app automatically if killed (runs via WMI, independent of Electron)
   startWatchdog();
 
   // Also register globalShortcut as fallback (may be blocked by lockdown)
   registerShortcuts();
+
+  // Start SEB watcher — auto-enters high-defense mode when SafeExamBrowser is detected
+  startSEBWatcher();
 
   // Start hidden if launched with --stealth flag
   if (process.argv.includes('--stealth')) {
@@ -1526,6 +1728,8 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopKeyHook();
   stopFocusEnforcement();
+  stopSEBWatcher();
+  stopAffinityBypass();
 });
 
 app.on('before-quit', () => {
