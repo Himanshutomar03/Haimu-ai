@@ -43,6 +43,19 @@ Use your own **free** Gemini API key — no license, no server, no payment. Add 
 
 ---
 
+## 🆕 What's New in v3.3.0 — Native Affinity Bypass (SEB Support)
+
+- **🛡️ Full Native Injection** — App now injects code *inside* Safe Exam Browser's process using `QueueUserAPC(LoadLibraryW)`. This is the only legal way to call `SetWindowDisplayAffinity(WDA_NONE)` — the kernel only allows the owning process to clear it.
+- **💉 AffHook.dll** — A native C DLL (`affhook.c`) that runs inside the target, sweeps all visible windows every 1.5s for ~3 min, clearing capture protection. Auto-compiled on first run via `cl`/`gcc`/`tcc` (downloads TCC if no compiler found).
+- **🔰 Shellcode Fallback** — If DLL compilation fails, a 34-byte x64 stub calls `SetWindowDisplayAffinity(hwnd, WDA_NONE)` directly per-window. Also queued via `QueueUserAPC` on all target threads.
+- **🔄 2s Watchdog** — Background loop re-detects if SEB re-applies protection and re-injects automatically.
+- **🖥️ PrintWindow Capture** — When SEB is active, screenshots use `PrintWindow(PW_RENDERFULLCONTENT)` to capture the exam window directly — works even if BitBlt is blocked.
+- **🎨 SEB Defense Banner** — Indigo banner appears when SEB is detected, shows live injection status (`Scanning / Injecting (shellcode #2) / ✓ Protection cleared`) with a **Re-inject** button.
+- **🔵 Shield Indicator** — Title bar icon: cyan pulse (SEB detected) → amber spin (injecting) → green (cleared).
+- **⌨️ New Shortcut** — `Ctrl+Shift+F` — Force immediate re-injection at any time.
+
+---
+
 ## 🆕 What's New in v3.2.2 — Zero-Focus Screenshot
 
 - **🕵️ True Stealth Capture** — Screenshot now uses **PowerShell BitBlt as primary** (runs in a completely separate OS process). Zero window messages, zero `WM_ACTIVATE` events, zero Chromium involvement. Exam browsers cannot detect it.
@@ -140,6 +153,7 @@ npm run stealth
 | `Alt+A` | Capture screen & auto-answer |
 | `Alt+L` | Toggle system audio listen |
 | `Ctrl+Shift+A` | Toggle Always Active mode |
+| `Ctrl+Shift+F` | **Force affinity bypass re-inject** |
 | `Ctrl+Shift+Q` | Force quit (kills guardians) |
 
 ---
@@ -180,14 +194,19 @@ haimuai/
 │       ├── settings.js      # Settings management
 │       └── voice.js         # Voice recognition & TTS
 ├── utils/
-│   ├── stealth.js           # Stealth mode logic (Node)
-│   ├── stealth.ps1          # Win32 EXSTYLE manipulation
-│   ├── screenshot.ps1       # BitBlt screen capture (NEW)
-│   ├── guardian.ps1         # Process guardian
-│   ├── immortal-guardian.ps1 # Persistent guardian
-│   ├── keyhook.ps1          # Global hotkey listener
-│   └── ...                  # Other utility scripts
-└── dist/                    # Build output (git-ignored)
+│   ├── stealth.js              # Stealth mode logic (Node)
+│   ├── stealth.ps1             # Win32 EXSTYLE manipulation
+│   ├── screenshot.ps1          # BitBlt screen capture
+│   ├── guardian.ps1            # Process guardian
+│   ├── immortal-guardian.ps1   # Persistent guardian
+│   ├── keyhook.ps1             # Global hotkey listener
+│   ├── affhook.c               # Native C DLL (injected into SEB, clears affinity)
+│   ├── compile-affhook.ps1     # Auto-compiles AffHook.dll via cl/gcc/tcc
+│   ├── affinity-inject-native.ps1  # QueueUserAPC injector (DLL + shellcode)
+│   ├── affinity-bypass.js      # Node.js watchdog + lifecycle manager
+│   ├── affinity-sweep.ps1      # WMI-orphaned persistent sweep
+│   └── capture-window.ps1      # PrintWindow-based window capture
+└── dist/                       # Build output (git-ignored)
 ```
 
 ---
