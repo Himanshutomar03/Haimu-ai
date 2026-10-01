@@ -68,6 +68,13 @@
         <input type="range" id="quickOpacitySlider" min="20" max="100" value="95" class="quick-opacity-slider">
         <span class="quick-opacity-value" id="quickOpacityValue">95%</span>
       </div>
+      <button class="title-btn title-btn-help" id="btnHelp" title="Help & Features (?)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </button>
       <button class="title-btn" id="btnSettings">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
@@ -867,6 +874,323 @@ Education: B.Tech Computer Science, MIT University
 
   <!-- Toast Notification -->
   <div class="toast" id="toast"></div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HELP PANEL — All Features & Shortcuts Reference
+       ═════════════════════════════════════════════════════ -->
+  <div class="help-overlay" id="helpOverlay">
+
+    <!-- Header -->
+    <div class="help-header">
+      <div class="help-header-left">
+        <div class="help-logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="help-title">HaimuAi — Feature Guide</div>
+          <div class="help-subtitle">v3.3.0 · All features, shortcuts & tips</div>
+        </div>
+      </div>
+      <button class="help-close-btn" id="btnHelpClose">✕</button>
+    </div>
+
+    <!-- Search -->
+    <div class="help-search-wrapper">
+      <input type="text" class="help-search" id="helpSearch" placeholder="Search features, shortcuts…">
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="help-tabs" id="helpTabs">
+      <button class="help-tab active" data-tab="all">⚡ All</button>
+      <button class="help-tab" data-tab="ai">🤖 AI Chat</button>
+      <button class="help-tab" data-tab="capture">📸 Capture</button>
+      <button class="help-tab" data-tab="stealth">🕵️ Stealth</button>
+      <button class="help-tab" data-tab="voice">🎤 Voice</button>
+      <button class="help-tab" data-tab="interview">🎯 Interview</button>
+      <button class="help-tab" data-tab="shortcuts">⌨️ Shortcuts</button>
+      <button class="help-tab" data-tab="tips">💡 Tips</button>
+    </div>
+
+    <!-- Scrollable Content -->
+    <div class="help-content" id="helpContent">
+
+      <!-- ── AI CHAT ──────────────────────────────────────── -->
+      <div class="help-section" data-tab="ai all">
+        <div class="help-section-title">AI Chat</div>
+        <div class="help-card">
+          <div class="help-feature" data-search="ai chat explain debug generate practice ask question answer">
+            <div class="help-feature-icon purple">🤖</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">AI Chat <span class="help-feature-badge auto">Auto</span></div>
+              <div class="help-feature-desc">Ask any question — code, theory, MCQ, problem solving. Supports multi-turn conversation with full context. Switch modes via the action bar: Explain, Debug, Generate, Practice.</div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="explain code ai mode">
+            <div class="help-feature-icon blue">💡</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Explain Mode</div>
+              <div class="help-feature-desc">Paste any code or concept — AI explains it step-by-step with examples. Great for understanding complex code during exams or interviews.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Explain</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="debug error fix code">
+            <div class="help-feature-icon red">🐛</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Debug Mode</div>
+              <div class="help-feature-desc">Paste buggy code — AI identifies the bug, explains why it's wrong, and gives you the fixed version with an explanation.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Debug</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="generate code write function ai">
+            <div class="help-feature-icon green">⚡</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Generate Mode</div>
+              <div class="help-feature-desc">Describe what you need — AI writes the complete code with comments. Supports all major languages via the language selector.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Generate</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="free mode gemini api key no license">
+            <div class="help-feature-icon amber">🔑</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Free Mode <span class="help-feature-badge new">Free</span></div>
+              <div class="help-feature-desc">Add your own Gemini API keys (free from aistudio.google.com). Keys rotate automatically on quota — no interruption. Go to Settings → API Keys to add.</div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="auto type type answer keyboard sendkeys">
+            <div class="help-feature-icon purple">⌨️</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Auto-Type</div>
+              <div class="help-feature-desc">After AI responds, click <strong>Auto-Type</strong> to have the answer typed directly into any focused application — no copy-paste needed.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Auto-Type</span><span class="help-kbd">Ctrl+Shift+T</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SCREENSHOT / CAPTURE ────────────────────────── -->
+      <div class="help-section" data-tab="capture all">
+        <div class="help-section-title">Screenshot & Capture</div>
+        <div class="help-card">
+          <div class="help-feature" data-search="screenshot capture screen photo ai analyze">
+            <div class="help-feature-icon blue">📸</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Screenshot Capture <span class="help-feature-badge stealth">Stealth</span></div>
+              <div class="help-feature-desc">Captures your screen using Win32 BitBlt — runs in a completely separate OS process. <strong>Zero focus events</strong>, zero WM_ACTIVATE signals. Undetectable by exam browsers.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Capture</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="answer question auto capture mcq solve instant">
+            <div class="help-feature-icon amber">🧠</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Answer Button <span class="help-feature-badge auto">Auto</span></div>
+              <div class="help-feature-desc">One click: captures screen → sends to AI → instantly answers the visible question. Works for MCQs, coding problems, fill-in-the-blank, true/false, short answer — anything visible on screen.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Answer</span><span class="help-kbd">Alt+A</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="multi screenshot multiple gallery upload image">
+            <div class="help-feature-icon purple">🖼️</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Multi-Screenshot Gallery</div>
+              <div class="help-feature-desc">Capture or upload multiple screenshots at once. AI analyzes all of them together — useful for multi-part problems or comparing two screenshots.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Capture → + Capture Screen</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="seb printwindow safe exam capture target window">
+            <div class="help-feature-icon cyan">🛡️</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">SEB PrintWindow Capture <span class="help-feature-badge new">New</span></div>
+              <div class="help-feature-desc">When Safe Exam Browser is detected, capture automatically switches to <strong>PrintWindow(PW_RENDERFULLCONTENT)</strong> — captures the SEB window directly even after affinity is bypassed. Works when BitBlt is blocked.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STEALTH & BYPASS ────────────────────────────── -->
+      <div class="help-section" data-tab="stealth all">
+        <div class="help-section-title">Stealth & SEB Bypass</div>
+        <div class="help-card">
+          <div class="help-feature" data-search="stealth overlay transparent invisible seb exam browser">
+            <div class="help-feature-icon cyan">👁️</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Stealth Overlay <span class="help-feature-badge stealth">Stealth</span></div>
+              <div class="help-feature-desc">HaimuAi runs as a <strong>WS_EX_LAYERED</strong> window with WDA_EXCLUDEFROMCAPTURE cleared. It's invisible to screen recorders, DWM capture, DXGI duplication, and OBS.</div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="affinity bypass seb injection dll native automatic">
+            <div class="help-feature-icon indigo">💉</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Native Affinity Bypass <span class="help-feature-badge new">New</span><span class="help-feature-badge auto">Auto</span></div>
+              <div class="help-feature-desc">Automatically detects Safe Exam Browser, Respondus, LockDown Browser, Proctorio, ExamSoft, ProctorU. Injects code <em>inside</em> the target process via <strong>QueueUserAPC(LoadLibraryW)</strong> to call SetWindowDisplayAffinity(WDA_NONE). Re-checks every 800ms. Fully automatic — no interaction needed.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Automatic</span><span class="help-kbd">Ctrl+Shift+F</span> force re-inject</div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="dll affhook compile native c dll">
+            <div class="help-feature-icon green">🔧</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">AffHook.dll Auto-Compile</div>
+              <div class="help-feature-desc">On first run, automatically compiles a native C DLL using Visual Studio cl, GCC, or TCC (downloads TCC if no compiler found). The DLL runs inside SEB, sweeping all windows every 1.2s for 6 minutes. More effective than shellcode.</div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="ghost mode invisible transparent window">
+            <div class="help-feature-icon">👻</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Ghost Mode</div>
+              <div class="help-feature-desc">Makes HaimuAi nearly invisible — only faint text is visible. Hover over any element to temporarily reveal it. Perfect when you need maximum stealth and someone is watching your screen.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Alt+G</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="always active no focus steal noactivate">
+            <div class="help-feature-icon amber">🔒</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Always Active Mode</div>
+              <div class="help-feature-desc">Clicking HaimuAi never steals focus from the exam window. WS_EX_NOACTIVATE is set — no WM_ACTIVATE events, no window-switch detection by exam browsers.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Ctrl+Shift+A</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="guardian immortal respawn keep alive process">
+            <div class="help-feature-icon red">⚡</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Immortal Guardian</div>
+              <div class="help-feature-desc">A self-healing process tree respawns HaimuAi within 3–8 seconds if it's killed. Runs via Windows Task Scheduler for maximum persistence across reboots.</div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="topmost watchdog 30ms always on top raise">
+            <div class="help-feature-icon purple">📌</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">30ms Topmost Watchdog</div>
+              <div class="help-feature-desc">Re-asserts HWND_TOPMOST every 30ms to stay above the exam browser's own raise-window watchdog. Uses WinEventHook to re-show within 500ms if an external monitor hides the window.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VOICE & AUDIO ───────────────────────────────── -->
+      <div class="help-section" data-tab="voice all">
+        <div class="help-section-title">Voice & Audio</div>
+        <div class="help-card">
+          <div class="help-feature" data-search="voice mic speech recognition dictate input">
+            <div class="help-feature-icon blue">🎤</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Voice Input</div>
+              <div class="help-feature-desc">Click the mic button or press <kbd>Alt+V</kbd> to speak. Uses Whisper/browser speech API to transcribe your voice directly into the input field. Stops automatically on silence.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Alt+V</span><span class="help-kbd">Click mic 🎤</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="listen system audio speaker capture zoom meet lecture">
+            <div class="help-feature-icon green">🎧</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">System Audio Listen <span class="help-feature-badge pro">Pro</span></div>
+              <div class="help-feature-desc">Captures audio playing through your speakers (Zoom, Teams, Meet, YouTube, lectures). Transcribes in real time. Press <strong>Stop & Answer</strong> — AI reads the transcript and answers all questions heard.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Alt+L</span><span class="help-kbd">Click Listen</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── INTERVIEW MODE ──────────────────────────────── -->
+      <div class="help-section" data-tab="interview all">
+        <div class="help-section-title">Interview Mode</div>
+        <div class="help-card">
+          <div class="help-feature" data-search="practice interview mock question answer grading">
+            <div class="help-feature-icon amber">🎯</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Practice Interview</div>
+              <div class="help-feature-desc">HaimuAi acts as a strict interviewer. Asks progressively harder questions based on your chosen topic (DSA, System Design, Frontend, etc.), grades your answers, and asks follow-ups.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Interview → Practice</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="online live interview assist answer question screen">
+            <div class="help-feature-icon red">🔴</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Live Interview Assist <span class="help-feature-badge pro">Pro</span></div>
+              <div class="help-feature-desc">During a real interview: capture the screen showing the question → AI instantly gives you a ready-to-speak answer in first-person form. Uses your resume for personalized answers.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Interview → Online</span></div>
+            </div>
+          </div>
+          <div class="help-feature" data-search="resume cv upload personalize interview">
+            <div class="help-feature-icon purple">📄</div>
+            <div class="help-feature-body">
+              <div class="help-feature-name">Resume Context</div>
+              <div class="help-feature-desc">Paste your resume/CV text. HaimuAi uses it to personalize all interview answers — mentions your actual projects, experience, and skills instead of generic responses.</div>
+              <div class="help-shortcuts"><span class="help-kbd">Click Resume</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── KEYBOARD SHORTCUTS ──────────────────────────── -->
+      <div class="help-section" data-tab="shortcuts all">
+        <div class="help-section-title">All Keyboard Shortcuts</div>
+        <div class="help-card">
+          <table class="help-shortcut-table">
+            <tr><td>Toggle show / hide window</td><td><span class="help-kbd">Ctrl+Shift+Space</span></td></tr>
+            <tr><td>Auto-capture screen & answer</td><td><span class="help-kbd">Alt+A</span></td></tr>
+            <tr><td>Listen to system audio</td><td><span class="help-kbd">Alt+L</span></td></tr>
+            <tr><td>Toggle Always Active (no focus steal)</td><td><span class="help-kbd">Ctrl+Shift+A</span></td></tr>
+            <tr><td>Force affinity bypass re-inject</td><td><span class="help-kbd">Ctrl+Shift+F</span></td></tr>
+            <tr><td>Force quit (kills all guardians)</td><td><span class="help-kbd">Ctrl+Shift+Q</span></td></tr>
+            <tr><td>Ghost mode (ultra transparent)</td><td><span class="help-kbd">Alt+G</span></td></tr>
+            <tr><td>Voice input (mic)</td><td><span class="help-kbd">Alt+V</span></td></tr>
+            <tr><td>Move window left / right / up / down</td><td><span class="help-kbd">Arrow keys</span></td></tr>
+            <tr><td>Send message</td><td><span class="help-kbd">Enter</span></td></tr>
+            <tr><td>Newline in input</td><td><span class="help-kbd">Shift+Enter</span></td></tr>
+            <tr><td>Analyze screenshot</td><td><span class="help-kbd">Ctrl+Enter</span> in prompt</td></tr>
+            <tr><td>Clear chat</td><td><span class="help-kbd">Ctrl+Backspace</span></td></tr>
+            <tr><td>Open settings</td><td><span class="help-kbd">Click ⚙️</span></td></tr>
+            <tr><td>Open this help</td><td><span class="help-kbd">Click ?</span></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── PRO TIPS ────────────────────────────────────── -->
+      <div class="help-section" data-tab="tips all">
+        <div class="help-section-title">Pro Tips</div>
+
+        <div class="help-tip">
+          <span class="help-tip-icon">🔑</span>
+          <div><strong>Add 3+ Gemini API keys</strong> in Settings → API Keys. HaimuAi rotates them automatically when one hits the daily quota — you never get blocked mid-exam.</div>
+        </div>
+        <div class="help-tip">
+          <span class="help-tip-icon">📸</span>
+          <div><strong>Use Alt+A (Answer)</strong> instead of manually screenshotting. It captures + sends to AI + answers in one keypress — the fastest way during timed exams.</div>
+        </div>
+        <div class="help-tip">
+          <span class="help-tip-icon">🛡️</span>
+          <div><strong>SEB bypass is fully automatic</strong> — just launch HaimuAi before (or after) starting SEB. The watchdog detects it within 2 seconds and starts injecting automatically. No buttons needed.</div>
+        </div>
+        <div class="help-tip">
+          <span class="help-tip-icon">👁️</span>
+          <div><strong>Always Active mode</strong> (Ctrl+Shift+A) prevents any window-switch alerts. Enable it before the exam starts so HaimuAi can receive your clicks without the exam browser detecting focus loss.</div>
+        </div>
+        <div class="help-tip">
+          <span class="help-tip-icon">🎧</span>
+          <div><strong>For oral/video interviews</strong>: Use Listen mode (Alt+L) to capture everything the interviewer says. Press Stop & Answer — AI answers all their questions from the audio transcript.</div>
+        </div>
+        <div class="help-tip">
+          <span class="help-tip-icon">⌨️</span>
+          <div><strong>Auto-Type</strong> is your safest bet for coding answers — AI types the solution directly into the exam editor. Combine with Always Active so focus never leaves the exam window.</div>
+        </div>
+        <div class="help-tip">
+          <span class="help-tip-icon">💡</span>
+          <div><strong>Ghost Mode</strong> (Alt+G) makes HaimuAi nearly invisible if someone looks at your screen. Hover over text to read it, move away and it fades. Use it in physical exam rooms.</div>
+        </div>
+        <div class="help-tip">
+          <span class="help-tip-icon">🔧</span>
+          <div>If the <strong>DLL compilation</strong> fails (no compiler), HaimuAi automatically falls back to shellcode injection — still effective, just slightly slower at clearing newly-protected windows.</div>
+        </div>
+      </div>
+
+    </div><!-- /help-content -->
+
+    <!-- Footer -->
+    <div class="help-footer">
+      <span class="help-footer-text">Press <strong>Esc</strong> or click ✕ to close</span>
+      <span class="help-version-badge">v3.3.0</span>
+    </div>
+  </div>
 
   <script src="modules/ai-chat.js"></script>
   <script src="modules/screenshot.js"></script>

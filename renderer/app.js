@@ -32,6 +32,7 @@ class HaimuAiApp {
     this.setupInterviewPdf();
     this.setupHistory();
     this.setupAffinityBypassUI();
+    this.setupHelp();
 
     // Load saved resume
     const savedResume = localStorage.getItem('haimuai_resume');
@@ -2154,6 +2155,97 @@ class HaimuAiApp {
           btn.classList.remove('spinning');
           btn.disabled = false;
         }, 2000);
+      }
+    });
+  }
+  /**
+   * Help Panel — tabs, search, open/close
+   */
+  setupHelp() {
+    const overlay  = document.getElementById('helpOverlay');
+    const openBtn  = document.getElementById('btnHelp');
+    const closeBtn = document.getElementById('btnHelpClose');
+    const search   = document.getElementById('helpSearch');
+    const tabs     = document.querySelectorAll('.help-tab');
+
+    if (!overlay) return;
+
+    // Open
+    openBtn?.addEventListener('click', () => this.openHelp());
+
+    // Close
+    closeBtn?.addEventListener('click', () => this.closeHelp());
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeHelp();
+    });
+
+    // Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('active')) {
+        this.closeHelp();
+      }
+    });
+
+    // Tab switching
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const selectedTab = tab.dataset.tab;
+
+        document.querySelectorAll('.help-section').forEach(section => {
+          const sectionTabs = (section.dataset.tab || '').split(' ');
+          section.classList.toggle('hidden', !sectionTabs.includes(selectedTab));
+        });
+
+        // Reset search
+        if (search) { search.value = ''; this._helpSearch(''); }
+      });
+    });
+
+    // Live search
+    search?.addEventListener('input', (e) => {
+      this._helpSearch(e.target.value.toLowerCase().trim());
+    });
+  }
+
+  openHelp() {
+    const overlay = document.getElementById('helpOverlay');
+    overlay?.classList.add('active');
+    // Reset to "All" tab
+    document.querySelectorAll('.help-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.help-tab[data-tab="all"]')?.classList.add('active');
+    document.querySelectorAll('.help-section').forEach(s => s.classList.remove('hidden'));
+    document.querySelectorAll('.help-feature').forEach(f => f.classList.remove('hidden'));
+    const search = document.getElementById('helpSearch');
+    if (search) search.value = '';
+  }
+
+  closeHelp() {
+    document.getElementById('helpOverlay')?.classList.remove('active');
+  }
+
+  _helpSearch(q) {
+    document.querySelectorAll('.help-feature').forEach(feature => {
+      const text = [
+        feature.dataset.search || '',
+        feature.textContent,
+      ].join(' ').toLowerCase();
+      feature.classList.toggle('hidden', q && !text.includes(q));
+    });
+
+    // Hide sections where all features are hidden
+    document.querySelectorAll('.help-section').forEach(section => {
+      if (section.classList.contains('hidden')) return;
+      const visible = [...section.querySelectorAll('.help-feature')]
+        .some(f => !f.classList.contains('hidden'));
+      // For shortcut table & tips, check differently
+      const hasTable = section.querySelector('.help-shortcut-table');
+      const hasTips  = section.querySelector('.help-tip');
+      if (!hasTable && !hasTips) {
+        section.style.display = visible ? '' : 'none';
+      } else {
+        section.style.display = '';
       }
     });
   }

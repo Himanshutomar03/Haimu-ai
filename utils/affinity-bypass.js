@@ -1,19 +1,19 @@
 /**
- * Affinity Bypass Module — Full Native Injection
+ * Affinity Bypass Module — Full Auto Mode
  *
- * Orchestrates SetWindowDisplayAffinity bypass using:
- *   1. Try to compile AffHook.dll (native C DLL) on first run
- *   2. DLL injection via LoadLibraryW + QueueUserAPC (primary)
- *   3. Shellcode injection via QueueUserAPC (fallback)
- *   4. Watchdog: re-checks every 2s, re-injects if protection reappears
+ * Fully automatic. Zero user interaction required.
+ *   1. Starts silently on app boot
+ *   2. Compiles AffHook.dll in background (tries cl/gcc/tcc/download-tcc)
+ *   3. Every 2s: scans for SEB/lockdown browsers
+ *   4. If found + protected: QueueUserAPC DLL injection (primary)
+ *      → fallback: per-window x64 shellcode via QueueUserAPC
+ *   5. Persistent WMI sweep child re-clears every 1.5s
+ *   6. If protection re-applied: re-injects within 2s
+ *   7. Cleans itself up on app quit
  *
- * The injection runs code INSIDE the target process, which is the ONLY
- * way to call SetWindowDisplayAffinity — the kernel enforces that only
- * the owning process may modify its window's display affinity.
- *
- * Logging:
- *   %LOCALAPPDATA%\QuickSearch\overlay.log  — injection events
- *   %TEMP%\AffHook.log                      — DLL worker (inside target)
+ * Logs:
+ *   %LOCALAPPDATA%\QuickSearch\overlay.log
+ *   %TEMP%\AffHook.log  (from DLL, inside target process)
  */
 
 const { execFile, spawn } = require('child_process');
@@ -21,7 +21,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// ── Process names to target ──────────────────────────────────────────
+// ── Targets ───────────────────────────────────────────────────────────
 const TARGET_PROCESS_NAMES = [
   'SafeExamBrowser', 'seb', 'SEB',
   'RCBrowserLockDown', 'LockDownBrowser',
@@ -32,117 +32,120 @@ const TARGET_PROCESS_NAMES = [
 ];
 
 // ── State ────────────────────────────────────────────────────────────
-let watchdogInterval = null;
-let targetPid = null;
-let lastProtectionStatus = 'unknown';
-let injectionCount = 0;
-let dllReady = false;
-let dllCompileAttempted = false;
-let statusCallback = null;
-let sweepProcess = null;
+let watchdogInterval  = null;
+let fastInterval      = null;   // 500ms when SEB active
+let targetPid         = null;
+let lastProtStatus    = 'unknown';
+let injectionCount    = 0;
+let dllReady          = false;
+let dllCompileAttempt = false;
+let statusCallback    = null;
+let sweepProcess      = null;
+let consecutiveFails  = 0;      // retries before switching strategy
 
 // ── Logging ──────────────────────────────────────────────────────────
-const logDir = path.join(process.env.LOCALAPPDATA || os.tmpdir(), 'QuickSearch');
+const logDir  = path.join(process.env.LOCALAPPDATA || os.tmpdir(), 'QuickSearch');
 const logPath = path.join(logDir, 'overlay.log');
+let logBuffer = [];
+let logFlushTimer = null;
 
 function ensureLogDir() {
-  try { if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true }); } catch (e) {}
+  try { if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true }); } catch (_) {}
 }
 
 function log(tag, msg) {
-  ensureLogDir();
   const ts = new Date().toISOString();
-  try { fs.appendFileSync(logPath, `[${ts}] [${tag}] ${msg}\n`); } catch (e) {}
+  const line = `[${ts}] [${tag}] ${msg}\n`;
+  logBuffer.push(line);
+  // Batch-flush every 2s to avoid hammering the filesystem
+  if (!logFlushTimer) {
+    logFlushTimer = setTimeout(() => {
+      ensureLogDir();
+      try { fs.appendFileSync(logPath, logBuffer.join('')); } catch (_) {}
+      logBuffer = [];
+      logFlushTimer = null;
+    }, 2000);
+  }
   console.log(`[AffinityBypass] [${tag}] ${msg}`);
 }
 
 // ── Script Path Resolver (ASAR-safe) ─────────────────────────────────
 function getScriptPath(name) {
-  const devPath = path.join(__dirname, name);
-  if (fs.existsSync(devPath)) return devPath;
+  // 1. Dev path
+  const dev = path.join(__dirname, name);
+  if (fs.existsSync(dev)) return dev;
 
-  const resourcePath = path.join(process.resourcesPath || '', 'utils', name);
-  if (fs.existsSync(resourcePath)) return resourcePath;
+  // 2. Packaged resources path
+  const res = path.join(process.resourcesPath || '', 'utils', name);
+  if (fs.existsSync(res)) return res;
 
-  const tmpDir = path.join(os.tmpdir(), 'haimuai');
+  // 3. Extract to temp (ASAR bundles scripts as read-only)
+  const tmpDir = path.join(os.tmpdir(), 'haimuai-utils');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-  const tmpPath = path.join(tmpDir, name);
+  const tmp = path.join(tmpDir, name);
 
-  for (const src of [devPath, resourcePath]) {
+  for (const src of [dev, res]) {
     try {
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, tmpPath);
-        return tmpPath;
-      }
-    } catch (e) {}
+      if (fs.existsSync(src)) { fs.copyFileSync(src, tmp); return tmp; }
+    } catch (_) {}
   }
   return null;
 }
 
-// ── DLL Compilation ──────────────────────────────────────────────────
+// ── DLL Management ───────────────────────────────────────────────────
 function getDllPath() {
-  const devPath = path.join(__dirname, 'AffHook.dll');
-  if (fs.existsSync(devPath)) return devPath;
-
-  const resourcePath = path.join(process.resourcesPath || '', 'utils', 'AffHook.dll');
-  if (fs.existsSync(resourcePath)) return resourcePath;
-
-  return null;
+  const candidates = [
+    path.join(__dirname, 'AffHook.dll'),
+    path.join(process.resourcesPath || '', 'utils', 'AffHook.dll'),
+    path.join(os.tmpdir(), 'haimuai-utils', 'AffHook.dll'),
+    path.join(os.tmpdir(), 'AffHook.dll'),
+  ];
+  return candidates.find(p => fs.existsSync(p)) || null;
 }
 
 function compileDll() {
   return new Promise((resolve) => {
-    if (dllCompileAttempted) { resolve(getDllPath()); return; }
-    dllCompileAttempted = true;
+    if (dllCompileAttempt) { resolve(getDllPath()); return; }
+    dllCompileAttempt = true;
 
-    const compileScript = getScriptPath('compile-affhook.ps1');
-    if (!compileScript) {
-      log('compile', 'compile-affhook.ps1 not found');
-      resolve(null);
-      return;
-    }
+    const existing = getDllPath();
+    if (existing) { dllReady = true; resolve(existing); return; }
 
-    log('compile', 'attempting to compile AffHook.dll...');
+    const script = getScriptPath('compile-affhook.ps1');
+    if (!script) { resolve(null); return; }
+
+    log('compile', 'compiling AffHook.dll in background...');
 
     execFile('powershell.exe', [
       '-NoProfile', '-ExecutionPolicy', 'Bypass',
       '-WindowStyle', 'Hidden', '-NonInteractive',
-      '-File', compileScript
-    ], { windowsHide: true, timeout: 60000 }, (err, stdout) => {
-      const output = (stdout || '').trim();
-      if (err) {
-        log('compile', `compilation failed: ${err.message}`);
-      } else {
-        log('compile', `compilation result: ${output}`);
-      }
+      '-File', script,
+    ], { windowsHide: true, timeout: 90000 }, (err, stdout) => {
+      const out = (stdout || '').trim();
+      log('compile', `result: ${err ? err.message : out}`);
       const dll = getDllPath();
-      if (dll) {
-        dllReady = true;
-        log('compile', `DLL ready at: ${dll}`);
-      }
+      if (dll) { dllReady = true; log('compile', `DLL ready: ${dll}`); }
       resolve(dll);
     });
   });
 }
 
-// ── Detect Target Process ────────────────────────────────────────────
-function detectTargetProcess() {
+// ── Process Detection ────────────────────────────────────────────────
+function detectTarget() {
   return new Promise((resolve) => {
     if (process.platform !== 'win32') { resolve(null); return; }
-
     execFile('tasklist', ['/NH', '/FO', 'CSV'], {
-      windowsHide: true, timeout: 5000,
+      windowsHide: true, timeout: 4000,
     }, (err, stdout) => {
       if (err) { resolve(null); return; }
-      const lines = stdout.split('\n');
-      for (const line of lines) {
+      for (const line of stdout.split('\n')) {
         const parts = line.split(',');
         if (parts.length < 2) continue;
-        const procName = parts[0].replace(/"/g, '').trim();
-        const pid = parseInt(parts[1].replace(/"/g, '').trim());
-        for (const target of TARGET_PROCESS_NAMES) {
-          if (procName.toLowerCase().includes(target.toLowerCase())) {
-            resolve({ name: procName, pid });
+        const name = parts[0].replace(/"/g, '').trim();
+        const pid  = parseInt(parts[1].replace(/"/g, '').trim());
+        for (const t of TARGET_PROCESS_NAMES) {
+          if (name.toLowerCase().includes(t.toLowerCase())) {
+            resolve({ name, pid });
             return;
           }
         }
@@ -152,200 +155,148 @@ function detectTargetProcess() {
   });
 }
 
-// ── Check Protection Status (cross-process read — legal) ─────────────
-function checkTargetProtection(pid) {
-  return new Promise((resolve) => {
-    const psCmd = `
+// ── Protection Check ─────────────────────────────────────────────────
+const AFFCHECK_PS = `
 Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class AffCheck {
-    [DllImport("user32.dll")] public static extern bool GetWindowDisplayAffinity(IntPtr h, out uint a);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
-    public delegate bool EP(IntPtr h, IntPtr l);
-    [DllImport("user32.dll")] public static extern bool EnumWindows(EP cb, IntPtr l);
-    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L,T,R,B; }
-    public static int Check(uint pid) {
-        int c = 0;
-        EnumWindows((h, l) => {
-            uint p; GetWindowThreadProcessId(h, out p);
-            if (p == pid && IsWindowVisible(h)) {
-                RECT r; if (GetWindowRect(h, out r)) {
-                    if ((r.R-r.L)>=200||(r.B-r.T)>=200) {
-                        uint a; if (GetWindowDisplayAffinity(h, out a) && a!=0) c++;
-                    }
-                }
-            }
-            return true;
-        }, IntPtr.Zero);
-        return c;
-    }
-}
-"@ -ErrorAction SilentlyContinue
-Write-Output ([AffCheck]::Check(${pid}))
-`.trim();
+using System; using System.Runtime.InteropServices;
+public class AC {
+  [DllImport("user32.dll")] public static extern bool GetWindowDisplayAffinity(IntPtr h,out uint a);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
+  public delegate bool EP(IntPtr h,IntPtr l);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EP cb,IntPtr l);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT{public int L,T,R,B;}
+  public static int Check(uint pid){
+    int c=0;
+    EnumWindows((h,l)=>{
+      uint p;GetWindowThreadProcessId(h,out p);
+      if(p==pid&&IsWindowVisible(h)){RECT r;if(GetWindowRect(h,out r)){
+        if((r.R-r.L)>=200||(r.B-r.T)>=200){uint a;if(GetWindowDisplayAffinity(h,out a)&&a!=0)c++;}}}
+      return true;},IntPtr.Zero);return c;}}
+"@ -EA SilentlyContinue
+Write-Output ([AC]::Check(PID_TOKEN))`.trim();
 
+function checkProtection(pid) {
+  return new Promise((resolve) => {
+    const cmd = AFFCHECK_PS.replace('PID_TOKEN', pid);
     execFile('powershell.exe', [
       '-NoProfile', '-ExecutionPolicy', 'Bypass',
-      '-WindowStyle', 'Hidden', '-NonInteractive',
-      '-Command', psCmd
-    ], { windowsHide: true, timeout: 8000 }, (err, stdout) => {
+      '-WindowStyle', 'Hidden', '-NonInteractive', '-Command', cmd,
+    ], { windowsHide: true, timeout: 7000 }, (err, stdout) => {
       if (err) { resolve(-1); return; }
-      const count = parseInt((stdout || '').trim());
-      resolve(isNaN(count) ? -1 : count);
+      const n = parseInt((stdout || '').trim());
+      resolve(isNaN(n) ? -1 : n);
     });
   });
 }
 
-// ── Native Injection (DLL + Shellcode) ───────────────────────────────
-function launchNativeInjection(pid) {
+// ── Native Injection ─────────────────────────────────────────────────
+function inject(pid) {
   return new Promise((resolve) => {
-    const injectScript = getScriptPath('affinity-inject-native.ps1');
-    if (!injectScript) {
-      log('affinity', 'ERROR: affinity-inject-native.ps1 not found');
-      resolve(false);
-      return;
-    }
+    const script = getScriptPath('affinity-inject-native.ps1');
+    if (!script) { resolve(false); return; }
 
     const args = [
       '-NoProfile', '-ExecutionPolicy', 'Bypass',
       '-WindowStyle', 'Hidden', '-NonInteractive',
-      '-File', injectScript,
-      '-TargetPid', pid.toString(),
+      '-File', script,
+      '-TargetPid', String(pid),
       '-Mode', 'auto',
     ];
-
-    // Pass DLL path if available
-    const dllPath = getDllPath();
-    if (dllPath) {
-      args.push('-DllPath', dllPath);
-    }
+    const dll = getDllPath();
+    if (dll) args.push('-DllPath', dll);
 
     injectionCount++;
-    log('affinity', `APC queued — native injection #${injectionCount} for PID ${pid} (DLL: ${dllPath ? 'yes' : 'shellcode-only'})`);
+    log('inject', `#${injectionCount} → PID ${pid} [${dll ? 'DLL' : 'shellcode'}]`);
 
-    execFile('powershell.exe', args, {
-      windowsHide: true, timeout: 30000,
-    }, (err, stdout, stderr) => {
-      const output = (stdout || '').trim();
-      if (err) {
-        log('affinity', `injection error: ${err.message}`);
-        resolve(false);
-      } else {
-        log('affinity', `injection result: ${output}`);
-        resolve(output.startsWith('OK:'));
-      }
+    execFile('powershell.exe', args, { windowsHide: true, timeout: 25000 }, (err, stdout) => {
+      const out = (stdout || '').trim();
+      log('inject', `result: ${err ? err.message : out}`);
+      const ok = !err && out.startsWith('OK:');
+      if (ok) consecutiveFails = 0;
+      else consecutiveFails++;
+      resolve(ok);
     });
   });
 }
 
-// ── Launch Persistent Sweep (keeps re-clearing in target) ────────────
-function launchPersistentSweep(pid) {
+// ── Persistent Sweep (WMI-orphaned, survives kills) ──────────────────
+function launchSweep(pid) {
   if (sweepProcess && !sweepProcess.killed) {
-    try { sweepProcess.kill(); } catch (e) {}
+    try { sweepProcess.kill(); } catch (_) {}
   }
-
-  const sweepScript = getScriptPath('affinity-sweep.ps1');
-  if (!sweepScript) return;
+  const script = getScriptPath('affinity-sweep.ps1');
+  if (!script) return;
 
   sweepProcess = spawn('powershell.exe', [
     '-NoProfile', '-ExecutionPolicy', 'Bypass',
     '-WindowStyle', 'Hidden', '-NonInteractive',
-    '-File', sweepScript,
-    '-TargetPid', pid.toString(),
-    '-Iterations', '120',
-    '-IntervalMs', '1500',
-  ], {
-    windowsHide: true, detached: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+    '-File', script,
+    '-TargetPid', String(pid),
+    '-Iterations', '240',   // 6 min
+    '-IntervalMs', '1200',  // tighter interval
+  ], { windowsHide: true, detached: true, stdio: 'ignore' });
 
-  sweepProcess.stdout.on('data', (d) => {
-    const line = d.toString().trim();
-    if (line) log('sweep', line);
-  });
-  sweepProcess.stderr.on('data', () => {});
   sweepProcess.on('exit', () => { sweepProcess = null; });
   sweepProcess.on('error', () => {});
   sweepProcess.unref();
-  log('affinity', `persistent sweep launched for PID ${pid}`);
+  log('sweep', `launched for PID ${pid}`);
 }
 
-// ── Capture Target Window via PrintWindow ────────────────────────────
-function captureTargetWindow(pid) {
-  return new Promise((resolve, reject) => {
-    const captureScript = getScriptPath('capture-window.ps1');
-    if (!captureScript) { reject(new Error('capture-window.ps1 not found')); return; }
-
-    const args = [
-      '-NoProfile', '-ExecutionPolicy', 'Bypass',
-      '-WindowStyle', 'Hidden', '-NonInteractive',
-      '-File', captureScript,
-    ];
-    if (pid) args.push('-TargetPid', pid.toString());
-
-    let stdout = '';
-    const ps = spawn('powershell.exe', args, {
-      windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    ps.stdout.on('data', (d) => { stdout += d.toString(); });
-    ps.on('close', (code) => {
-      const out = stdout.trim();
-      if (out.startsWith('OK:')) {
-        resolve('data:image/png;base64,' + out.slice(3));
-      } else {
-        reject(new Error(out.replace(/^ERR:/, '') || `capture exited ${code}`));
-      }
-    });
-    ps.on('error', (err) => reject(err));
-    setTimeout(() => { try { ps.kill(); } catch (_) {} reject(new Error('Timeout')); }, 15000);
-  });
+// ── Switch to fast-tick when SEB is active ───────────────────────────
+function startFastMode() {
+  if (fastInterval) return;
+  fastInterval = setInterval(watchdogTick, 800); // 800ms when active
+}
+function stopFastMode() {
+  if (fastInterval) { clearInterval(fastInterval); fastInterval = null; }
 }
 
-// ── Watchdog Loop ────────────────────────────────────────────────────
+// ── Main watchdog tick ────────────────────────────────────────────────
 async function watchdogTick() {
   try {
-    const target = await detectTargetProcess();
+    const target = await detectTarget();
 
     if (!target) {
-      if (lastProtectionStatus !== 'no-target') {
-        lastProtectionStatus = 'no-target';
+      if (lastProtStatus !== 'no-target') {
+        lastProtStatus = 'no-target';
         targetPid = null;
-        log('affinity', 'no target process detected');
+        stopFastMode();
+        log('watch', 'no target — scanning every 2s');
         if (statusCallback) statusCallback({ status: 'no-target', pid: null });
       }
       return;
     }
 
     targetPid = target.pid;
-    const protectedCount = await checkTargetProtection(target.pid);
 
-    if (protectedCount > 0) {
-      log('affinity', `re-protected detected on PID ${target.pid} (${protectedCount} windows) — re-arming APC`);
-      lastProtectionStatus = 'protected';
+    // Switch to fast 800ms polling when we have a target
+    startFastMode();
 
-      // Launch native injection (DLL + shellcode)
-      await launchNativeInjection(target.pid);
+    const protCount = await checkProtection(target.pid);
 
-      // Also ensure persistent sweep is running
-      if (!sweepProcess || sweepProcess.killed) {
-        launchPersistentSweep(target.pid);
-      }
+    if (protCount > 0) {
+      log('watch', `protected (${protCount} windows) PID ${target.pid} — injecting`);
+      lastProtStatus = 'injecting';
+
+      await inject(target.pid);
+
+      // Kick persistent sweep
+      if (!sweepProcess || sweepProcess.killed) launchSweep(target.pid);
 
       if (statusCallback) statusCallback({
         status: 'injecting',
         pid: target.pid,
-        protectedWindows: protectedCount,
+        protectedWindows: protCount,
         injectionCount,
         dllReady,
       });
-    } else if (protectedCount === 0) {
-      if (lastProtectionStatus !== 'cleared') {
-        log('affinity', `protection cleared on PID ${target.pid}`);
-        lastProtectionStatus = 'cleared';
+
+    } else if (protCount === 0) {
+      if (lastProtStatus !== 'cleared') {
+        log('watch', `cleared PID ${target.pid} ✓`);
+        lastProtStatus = 'cleared';
       }
       if (statusCallback) statusCallback({
         status: 'cleared',
@@ -353,101 +304,124 @@ async function watchdogTick() {
         injectionCount,
         dllReady,
       });
+
     } else {
+      // checkProtection returned -1 (PS error) — still report target found
       if (statusCallback) statusCallback({
-        status: 'error',
+        status: 'active',
         pid: target.pid,
-        error: 'Could not read affinity',
+        injectionCount,
+        dllReady,
       });
     }
-  } catch (err) {
-    log('affinity', `watchdog error: ${err.message}`);
+  } catch (e) {
+    log('watch', `tick error: ${e.message}`);
   }
 }
 
-// ── Public API ───────────────────────────────────────────────────────
+// ── Capture ───────────────────────────────────────────────────────────
+function captureTargetWindow(pid) {
+  return new Promise((resolve, reject) => {
+    const script = getScriptPath('capture-window.ps1');
+    if (!script) { reject(new Error('capture-window.ps1 not found')); return; }
+
+    const args = [
+      '-NoProfile', '-ExecutionPolicy', 'Bypass',
+      '-WindowStyle', 'Hidden', '-NonInteractive',
+      '-File', script,
+    ];
+    if (pid) args.push('-TargetPid', String(pid));
+
+    let out = '';
+    const ps = spawn('powershell.exe', args, {
+      windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    ps.stdout.on('data', d => { out += d.toString(); });
+    ps.on('close', () => {
+      const s = out.trim();
+      if (s.startsWith('OK:')) resolve('data:image/png;base64,' + s.slice(3));
+      else reject(new Error(s.replace(/^ERR:/, '') || 'capture failed'));
+    });
+    ps.on('error', reject);
+    const t = setTimeout(() => { try { ps.kill(); } catch (_) {} reject(new Error('Timeout')); }, 15000);
+    ps.on('close', () => clearTimeout(t));
+  });
+}
+
+// ── Public API ────────────────────────────────────────────────────────
 
 /**
- * Start the affinity bypass watchdog.
- * On first run, attempts to compile AffHook.dll for maximum effectiveness.
+ * Starts the fully-automatic bypass watchdog.
+ * Call once on app boot — no further interaction needed.
  */
 function startAffinityBypass(onStatus) {
   if (process.platform !== 'win32') return;
-  if (watchdogInterval) return;
+  if (watchdogInterval) return;           // already running
 
   statusCallback = onStatus || null;
-  log('affinity', 'watchdog started (native injection mode)');
+  log('watch', '=== AUTO BYPASS STARTED (DLL+shellcode mode) ===');
 
-  // Try to compile DLL on first startup (async, non-blocking)
-  compileDll().then((dllPath) => {
-    if (dllPath) {
-      log('affinity', `DLL available: ${dllPath}`);
+  // Compile DLL immediately in background — non-blocking
+  compileDll().then(dll => {
+    if (dll) {
+      log('watch', `DLL compiled and ready: ${dll}`);
       dllReady = true;
     } else {
-      log('affinity', 'DLL not available — will use shellcode injection only');
+      log('watch', 'no compiler found — shellcode-only mode active');
     }
   }).catch(() => {});
 
-  // Immediate first check
+  // First tick immediately
   watchdogTick();
 
-  // Then every 2 seconds
+  // Slow background tick (fast mode kicks in automatically when SEB detected)
   watchdogInterval = setInterval(watchdogTick, 2000);
 }
 
-/**
- * Stop the affinity bypass watchdog.
- */
 function stopAffinityBypass() {
-  if (watchdogInterval) {
-    clearInterval(watchdogInterval);
-    watchdogInterval = null;
-  }
+  if (watchdogInterval) { clearInterval(watchdogInterval); watchdogInterval = null; }
+  stopFastMode();
   if (sweepProcess && !sweepProcess.killed) {
-    try { sweepProcess.kill(); } catch (e) {}
+    try { sweepProcess.kill(); } catch (_) {}
     sweepProcess = null;
   }
+  // flush remaining logs
+  if (logBuffer.length) {
+    ensureLogDir();
+    try { fs.appendFileSync(logPath, logBuffer.join('')); } catch (_) {}
+    logBuffer = [];
+  }
   targetPid = null;
-  lastProtectionStatus = 'unknown';
+  lastProtStatus = 'unknown';
   injectionCount = 0;
   statusCallback = null;
-  log('affinity', 'watchdog stopped');
+  log('watch', 'stopped');
 }
 
-/**
- * Get current bypass status.
- */
 function getAffinityStatus() {
   return {
-    active: watchdogInterval !== null,
+    active: !!watchdogInterval,
+    fastMode: !!fastInterval,
     targetPid,
-    status: lastProtectionStatus,
+    status: lastProtStatus,
     injectionCount,
     dllReady,
-    sweepRunning: sweepProcess && !sweepProcess.killed,
+    sweepRunning: !!(sweepProcess && !sweepProcess.killed),
   };
 }
 
-/**
- * Force an immediate re-injection attempt.
- */
 async function forceReInject() {
   if (!targetPid) {
-    const target = await detectTargetProcess();
-    if (target) targetPid = target.pid;
+    const t = await detectTarget();
+    if (t) targetPid = t.pid;
   }
-  if (targetPid) {
-    log('affinity', `manual re-inject triggered for PID ${targetPid}`);
-    await launchNativeInjection(targetPid);
-    launchPersistentSweep(targetPid);
-    return true;
-  }
-  return false;
+  if (!targetPid) return false;
+  log('inject', `manual re-inject → PID ${targetPid}`);
+  await inject(targetPid);
+  launchSweep(targetPid);
+  return true;
 }
 
-/**
- * Capture the target window (uses PrintWindow).
- */
 async function captureTarget() {
   return captureTargetWindow(targetPid);
 }
