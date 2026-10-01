@@ -2088,6 +2088,8 @@ class HaimuAiApp {
   /**
    * Updates the title bar affinity shield icon.
    * States: hidden | active (cyan) | injecting (amber spin) | cleared (green)
+   * NOTE: Does NOT show the SEB banner — that is exclusively controlled by
+   * the seb-mode-changed IPC event from main process (real SEB detection).
    */
   updateAffinityUI(status) {
     const indicator = document.getElementById('affinityIndicator');
@@ -2116,16 +2118,20 @@ class HaimuAiApp {
       indicator.title = `Affinity Bypass — Active (PID ${status.pid || '?'})`;
     }
 
-    // Also update SEB banner status text
-    this.updateSebBannerUI(true, status);
+    // Only update the banner STATUS TEXT if the banner is already showing
+    // (banner visibility is controlled solely by seb-mode-changed event)
+    const banner = document.getElementById('sebBanner');
+    if (banner && banner.classList.contains('active')) {
+      this._updateSebBannerStatus(status);
+    }
   }
 
   /**
-   * Shows/hides the SEB defense banner and updates its status badge.
+   * Shows/hides the SEB defense banner.
+   * Called ONLY by the seb-mode-changed IPC event (real SEB detection).
    */
   updateSebBannerUI(active, affinityStatus) {
     const banner = document.getElementById('sebBanner');
-    const statusEl = document.getElementById('sebBannerStatus');
     if (!banner) return;
 
     if (!active) {
@@ -2135,20 +2141,30 @@ class HaimuAiApp {
 
     banner.classList.add('active');
 
-    if (statusEl && affinityStatus) {
-      statusEl.classList.remove('injecting', 'cleared');
-      if (affinityStatus.status === 'injecting') {
-        const mode = affinityStatus.dllReady ? 'DLL' : 'shellcode';
-        statusEl.textContent = `Injecting (${mode} #${affinityStatus.injectionCount})`;
-        statusEl.classList.add('injecting');
-      } else if (affinityStatus.status === 'cleared') {
-        statusEl.textContent = '✓ Protection cleared';
-        statusEl.classList.add('cleared');
-      } else if (affinityStatus.status === 'no-target') {
-        statusEl.textContent = 'Scanning...';
-      } else {
-        statusEl.textContent = `PID ${affinityStatus.pid || '?'}`;
-      }
+    if (affinityStatus) {
+      this._updateSebBannerStatus(affinityStatus);
+    }
+  }
+
+  /**
+   * Internal: update just the status badge text inside the banner.
+   */
+  _updateSebBannerStatus(affinityStatus) {
+    const statusEl = document.getElementById('sebBannerStatus');
+    if (!statusEl || !affinityStatus) return;
+
+    statusEl.classList.remove('injecting', 'cleared');
+    if (affinityStatus.status === 'injecting') {
+      const mode = affinityStatus.dllReady ? 'DLL' : 'shellcode';
+      statusEl.textContent = `Injecting (${mode} #${affinityStatus.injectionCount})`;
+      statusEl.classList.add('injecting');
+    } else if (affinityStatus.status === 'cleared') {
+      statusEl.textContent = '✓ Protection cleared';
+      statusEl.classList.add('cleared');
+    } else if (affinityStatus.status === 'no-target') {
+      statusEl.textContent = 'Scanning...';
+    } else {
+      statusEl.textContent = `PID ${affinityStatus.pid || '?'}`;
     }
   }
 
