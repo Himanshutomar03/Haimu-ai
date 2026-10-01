@@ -22,16 +22,16 @@ No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Setup-3.2.2.exe) | ~80 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Portable-3.2.2.exe) | ~73 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Setup-3.3.0.exe) | ~80 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Portable-3.3.0.exe) | ~73 MB |
 
 ### 🆓 Free Mode — No Activation Key Required
 Use your own **free** Gemini API key — no license, no server, no payment. Add multiple keys for automatic failover.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Setup-3.2.2.exe) | ~80 MB |
-| 📦 **Portable** | [HaimuAi-Portable-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Portable-3.2.2.exe) | ~73 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Setup-3.3.0.exe) | ~80 MB |
+| 📦 **Portable** | [HaimuAi-Portable-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Portable-3.3.0.exe) | ~73 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
