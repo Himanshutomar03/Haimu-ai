@@ -5,30 +5,33 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078d7.svg)
 ![Electron](https://img.shields.io/badge/Electron-30+-47848f.svg)
-![Version](https://img.shields.io/badge/version-3.1.0-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-3.3.0-brightgreen.svg)
+![SEB](https://img.shields.io/badge/SEB%20bypass-native%20injection-blueviolet.svg)
 ![BitBlt](https://img.shields.io/badge/screenshot-BitBlt%20GDI-purple.svg)
 
 ---
 
 ## ⬇️ Download
 
-**Latest Release: v3.2.2** — *Released September 24, 2026*
+> 🆕 **v3.3.0** — Now includes **fully automatic SEB/Respondus/LockDown bypass** (no user interaction), premium UI upgrade, and a built-in Help panel. Just download and run.
+
+**Latest Release: v3.3.0** — *Released October 1, 2026*
 
 ### 🔑 Licensed Version (with HaimuAi Server)
 No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Setup-3.2.2.exe) | ~78 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Portable.exe) | ~71 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Setup-3.3.0.exe) | ~80 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Portable-3.3.0.exe) | ~73 MB |
 
 ### 🆓 Free Mode — No Activation Key Required
 Use your own **free** Gemini API key — no license, no server, no payment. Add multiple keys for automatic failover.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.2.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Setup-3.2.2.exe) | ~78 MB |
-| 📦 **Portable** | [HaimuAi-Portable.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.2.2/HaimuAi-Portable.exe) | ~71 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Setup-3.3.0.exe) | ~80 MB |
+| 📦 **Portable** | [HaimuAi-Portable-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Portable-3.3.0.exe) | ~73 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
@@ -38,6 +41,8 @@ Use your own **free** Gemini API key — no license, no server, no payment. Add 
 > 🔑 Get a **free** Gemini API key (no credit card) → [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
 
 > 💡 **Tip:** Add 2–3 keys to enable automatic failover — HaimuAi switches instantly when one key hits its daily quota.
+
+> 🛡️ **SEB/Respondus/LockDown bypass is fully automatic** — just launch HaimuAi, it detects exam browsers within 2 seconds and injects automatically. Press `Ctrl+Shift+F` to force re-inject at any time.
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
 
