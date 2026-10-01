@@ -1,6 +1,6 @@
 {
   "name": "haimuai",
-  "version": "3.2.2",
+  "version": "3.3.0",
   "description": "HaimuAi v3 - Stealth AI Desktop Assistant with voice, screenshots, and AI-powered assistance",
   "main": "main.js",
   "scripts": {
@@ -11,11 +11,13 @@
     "launch:stealth": "powershell -ExecutionPolicy Bypass -File ./launch.ps1 -Stealth",
     "kill": "powershell -ExecutionPolicy Bypass -File ./launch.ps1 -Kill",
     "obfuscate": "node scripts/obfuscate.js",
-    "build": "npm run obfuscate && electron-builder --win",
-    "build:mac": "npm run obfuscate && electron-builder --mac",
-    "build:all": "npm run obfuscate && electron-builder --win --mac",
+    "build": "electron-builder --win",
+    "build:clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder --win --mac",
     "build:portable": "electron-builder --win portable",
-    "build:dir": "electron-builder --win --dir"
+    "build:dir": "electron-builder --win --dir",
+    "release": "node scripts/release.js"
   },
   "keywords": [
     "ai",
@@ -54,12 +56,13 @@
       {
         "from": "utils",
         "to": "utils",
-        "filter": ["**/*.ps1", "**/*.js"]
+        "filter": ["**/*.ps1", "**/*.js", "**/*.c"]
       }
     ],
     "asar": true,
     "asarUnpack": [
-      "utils/**/*.ps1"
+      "utils/**/*.ps1",
+      "utils/**/*.c"
     ],
     "win": {
       "target": [
@@ -99,10 +102,11 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "HaimuAi"
+      "shortcutName": "HaimuAi",
+      "artifactName": "HaimuAi-Setup-${version}.exe"
     },
     "portable": {
-      "artifactName": "HaimuAi-Portable.exe"
+      "artifactName": "HaimuAi-Portable-${version}.exe"
     }
   }
 }
