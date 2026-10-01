@@ -132,6 +132,8 @@ const store = new Store({
     freeApiKeys: [],          // array of { provider, key, label } objects
     freeApiKeyIndex: 0,       // index of currently active key
     freeModeEnabled: false,   // true when user wants to use own keys
+    // ── SEB bypass ──
+    sebBypassEnabled: true,      // auto SEB/Respondus/LockDown bypass
     // ── App settings ──
     defaultLanguage: 'javascript',
     defaultCommand: 'explain',
@@ -1326,6 +1328,29 @@ ipcMain.handle('stop-affinity-bypass', () => {
   return true;
 });
 
+ipcMain.handle('get-seb-bypass-enabled', () => store.get('sebBypassEnabled', true));
+
+ipcMain.handle('set-seb-bypass-enabled', (event, enabled) => {
+  store.set('sebBypassEnabled', enabled);
+  if (enabled) {
+    // Start bypass + watcher if not already running
+    startAffinityBypass((status) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('affinity-status', status);
+      }
+    });
+    startSEBWatcher();
+    console.log('[SEB] Bypass enabled by user');
+  } else {
+    // Stop everything
+    stopAffinityBypass();
+    stopSEBWatcher();
+    if (sebActive) exitSEBDefenseMode();
+    console.log('[SEB] Bypass disabled by user');
+  }
+  return true;
+});
+
 ipcMain.handle('toggle-ghost-mode', () => {
   toggleGhostMode();
   return ghostMode;
@@ -1670,15 +1695,17 @@ function bootApp() {
   // Start guardian FIRST — so it survives even if app is force-quit immediately
   startGuardian();
 
-  // ── Start Affinity Bypass watchdog ──
+  // ── Start Affinity Bypass watchdog (only if enabled in settings) ──
   // Continuously monitors for SEB/lockdown browsers and clears their
   // WDA_EXCLUDEFROMCAPTURE protection so screenshots work
-  startAffinityBypass((status) => {
-    console.log('[AffinityBypass] Status:', JSON.stringify(status));
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('affinity-status', status);
-    }
-  });
+  if (store.get('sebBypassEnabled', true)) {
+    startAffinityBypass((status) => {
+      console.log('[AffinityBypass] Status:', JSON.stringify(status));
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('affinity-status', status);
+      }
+    });
+  }
 
   // Start watchdog — relaunches app automatically if killed (runs via WMI, independent of Electron)
   startWatchdog();
@@ -1687,7 +1714,9 @@ function bootApp() {
   registerShortcuts();
 
   // Start SEB watcher — auto-enters high-defense mode when SafeExamBrowser is detected
-  startSEBWatcher();
+  if (store.get('sebBypassEnabled', true)) {
+    startSEBWatcher();
+  }
 
   // Start hidden if launched with --stealth flag
   if (process.argv.includes('--stealth')) {

@@ -4933,3 +4933,197 @@ body, .title-bar, .quick-actions, .chat-area, .input-area,
 .help-section.hidden { display: none; }
 .help-feature.hidden { display: none; }
 
+/* ============================================================
+   SEB DEFENSE BANNER — Glassmorphism indigo/violet theme
+   ============================================================ */
+
+.seb-banner {
+  position: fixed;
+  top: 36px;
+  left: 0;
+  right: 0;
+  z-index: 150;
+  display: none;
+  flex-direction: column;
+  background: linear-gradient(135deg, rgba(49, 46, 129, 0.88) 0%, rgba(30, 27, 75, 0.92) 100%);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom: 1px solid rgba(129, 140, 248, 0.25);
+  box-shadow: 0 4px 24px rgba(49, 46, 129, 0.4), 0 1px 0 rgba(129, 140, 248, 0.1) inset;
+  animation: sebBannerSlide 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.seb-banner.active {
+  display: flex;
+}
+
+@keyframes sebBannerSlide {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.seb-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  flex: 1;
+}
+
+.seb-banner-content svg {
+  color: #a5b4fc;
+  flex-shrink: 0;
+}
+
+.seb-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #818cf8;
+  box-shadow: 0 0 8px rgba(129, 140, 248, 0.6);
+  animation: sebDotPulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes sebDotPulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(129, 140, 248, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(129, 140, 248, 0.8), 0 0 28px rgba(129, 140, 248, 0.3);
+    transform: scale(1.2);
+  }
+}
+
+#sebBannerText {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e7ff;
+  letter-spacing: 0.2px;
+}
+
+.seb-banner-status {
+  font-size: 11px;
+  font-weight: 500;
+  color: #a5b4fc;
+  padding: 2px 8px;
+  background: rgba(129, 140, 248, 0.12);
+  border: 1px solid rgba(129, 140, 248, 0.2);
+  border-radius: 20px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.seb-banner-status.injecting {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+  animation: sebStatusPulse 1s ease-in-out infinite;
+}
+
+.seb-banner-status.cleared {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+@keyframes sebStatusPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+.seb-banner-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 14px 8px;
+}
+
+.seb-reinject-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: rgba(129, 140, 248, 0.15);
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 6px;
+  color: #c7d2fe;
+  font-family: var(--font-main, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.seb-reinject-btn:hover {
+  background: rgba(129, 140, 248, 0.3);
+  border-color: rgba(129, 140, 248, 0.55);
+  color: #e0e7ff;
+  box-shadow: 0 0 12px rgba(129, 140, 248, 0.2);
+  transform: translateY(-1px);
+}
+
+.seb-reinject-btn:active {
+  transform: translateY(0);
+}
+
+.seb-reinject-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.seb-reinject-btn.spinning svg {
+  animation: sebSpin 0.8s linear infinite;
+}
+
+@keyframes sebSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   AFFINITY INDICATOR — Title bar shield icon states
+   ============================================================ */
+
+.indicator.affinity-indicator {
+  display: none;
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+}
+
+.indicator.affinity-indicator.active {
+  display: flex;
+  color: #22d3ee;
+  animation: affinityPulse 2s ease-in-out infinite;
+}
+
+.indicator.affinity-indicator.injecting {
+  display: flex;
+  color: #fbbf24;
+  animation: affinitySpin 1.2s linear infinite;
+}
+
+.indicator.affinity-indicator.cleared {
+  display: flex;
+  color: #34d399;
+  animation: none;
+}
+
+@keyframes affinityPulse {
+  0%, 100% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 2px rgba(34, 211, 238, 0.3));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.6));
+  }
+}
+
+@keyframes affinitySpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+

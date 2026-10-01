@@ -51,6 +51,10 @@ contextBridge.exposeInMainWorld('haimuai', {
   startAffinityBypass: () => ipcRenderer.invoke('start-affinity-bypass'),
   stopAffinityBypass: () => ipcRenderer.invoke('stop-affinity-bypass'),
 
+  // ── SEB Bypass toggle ──
+  getSebBypassEnabled: () => ipcRenderer.invoke('get-seb-bypass-enabled'),
+  setSebBypassEnabled: (enabled) => ipcRenderer.invoke('set-seb-bypass-enabled', enabled),
+
   // Event listeners
   onSafeModeChanged: (callback) => ipcRenderer.on('safe-mode-changed', (_, value) => callback(value)),
   onInteractionSafeModeChanged: (callback) => ipcRenderer.on('interaction-safe-mode-changed', (_, value) => callback(value)),

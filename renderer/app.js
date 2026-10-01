@@ -1709,6 +1709,26 @@ class HaimuAiApp {
       }
     });
 
+    // SEB Bypass checkbox — toggle immediately via IPC
+    const sebCheckbox = document.getElementById('settingSebBypass');
+    if (sebCheckbox) {
+      // Load initial state
+      window.haimuai.getSebBypassEnabled?.().then(enabled => {
+        sebCheckbox.checked = enabled;
+      });
+
+      sebCheckbox.addEventListener('change', async (e) => {
+        const enabled = e.target.checked;
+        await window.haimuai.setSebBypassEnabled(enabled);
+        this.showToast(
+          enabled
+            ? '🛡️ SEB Bypass ON — auto-detects and clears exam browser protection'
+            : '🛡️ SEB Bypass OFF — exam browser bypass disabled',
+          'info'
+        );
+      });
+    }
+
     // Theme toggle buttons
     document.querySelectorAll('.toggle-btn[data-theme]').forEach(btn => {
       btn.addEventListener('click', () => {
