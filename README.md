@@ -1,4 +1,4 @@
-﻿# HaimuAi v3 — Stealth AI Desktop Assistant
+# HaimuAi v3 — Stealth AI Desktop Assistant
 
 A powerful AI-powered desktop assistant built with Electron. Features voice control, screenshot capture, AI chat, and stealth mode for undetectable operation.
 
@@ -13,7 +13,7 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 ## ⬇️ Download
 
-> 🔴 **v3.3.2** — Critical hotfix: voice transcription now actually works (missing closing brace in AI module caused silent crash). Mic + system audio captured together with no dialog.
+> ✅ **v3.3.5** — Simplified & stable: Free Mode (Gemini) + License Mode. ChatGPT removed. Both chat and voice now work reliably.
 
 **Latest Release: v3.3.5** — *Released October 6, 2026*
 
@@ -42,36 +42,19 @@ Use your own **free** Gemini API key — no license, no server, no payment.
 
 > 💡 **Tip:** Add 2–3 keys to enable automatic failover — HaimuAi switches instantly when one key hits its daily quota.
 
-### 🤖 ChatGPT Mode — Link Your ChatGPT Account (NEW in v3.3.1)
-No API key, no license needed — just log into ChatGPT once!
-
-1. Download & run, skip activation with **✕**
-2. Click **⚙️** gear → scroll to **ChatGPT Connection** → click **Link ChatGPT**
-3. A browser window opens — sign in to ChatGPT — **linking happens automatically**!
-4. Voice now uses **OpenAI Whisper**, AI chat uses **GPT-4o-mini**
-
 > 🛡️ **SEB/Respondus/LockDown bypass is fully automatic** — just launch HaimuAi, it detects exam browsers within 2 seconds and injects automatically. Press `Ctrl+Shift+F` to force re-inject at any time.
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
 
 ---
 
-## 🔴 Hotfix v3.3.2 — Transcription Actually Works Now
+## 🆕 What's New in v3.3.5 — Simplified & Stable
 
-- **🐛 Root cause found & fixed**: `ai-chat.js`'s `_initServer()` method was missing a closing `}` — this caused a **JavaScript syntax error** that prevented `window.aiChat = new AIChat()` from ever executing. Every voice transcription call threw `Cannot read properties of undefined (reading 'transcribeAudio')` because `window.aiChat` was `undefined`.
-- **🎤 Mic + System audio together** — the old approach called `getDisplayMedia()` which shows an intrusive screen-picker dialog. Now uses **Electron `desktopCapturer` via IPC** silently. Mic is automatically mixed with system audio — no dialog, no clicks.
-- **🛡️ Readiness guard** — added a 3-second wait loop before every transcription call, so even if there's a future async init delay, it gracefully waits instead of crashing.
-- **🔊 Listen mode (Alt+L)** — also updated to silent desktopCapturer capture.
-
----
-
-## 🆕 What's New in v3.3.1 — Voice Fix + Real ChatGPT Linking
-
-- **🎙️ Voice transcription fixed** — works for ALL users (Free/ChatGPT/Licensed). Root cause was `window.aiChat.apiKey` lookup that never exists; replaced with proper `transcribeAudio()` routing.
-- **🤖 Real ChatGPT session linking** — "Link ChatGPT" opens a real Electron window to chatgpt.com, waits for login, extracts the `next-auth` session cookie, then calls `/api/auth/session` to get the real OpenAI access token. Fully automatic.
-- **🔊 OpenAI Whisper transcription** — when ChatGPT is linked, voice transcription uses `whisper-1` via the official OpenAI API.
-- **💬 GPT-4o-mini AI chat** — ChatGPT-linked users get full AI chat via OpenAI API (no license needed).
-- **⚡ Smart provider chain** — Free Mode (Gemini) → ChatGPT (OpenAI) → Server (Licensed) — picks the first available automatically.
+- **🧹 ChatGPT removed** — eliminated all ChatGPT/Whisper integration that was causing crashes. Code is now clean and reliable.
+- **✅ Chat & voice both work** — fixed root cause: `window.aiChat` was `undefined` due to a missing `}` in `_initServer()`. Added `_waitForAIChat()` guard in app startup and every call site.
+- **🔊 Mic + System audio** — voice now captures both mic and system sound silently (no screen-share dialog) via `desktopCapturer` IPC.
+- **🛡️ Bulletproof calls** — all 33 `window.aiChat.` calls in `app.js` now use optional chaining (`?.`) so a future init issue can never crash the UI.
+- **⚡ Simple 2-mode routing**: Free Mode (Gemini API keys) → Licensed Server. No more complex 3-tier fallback.
 
 ---
 

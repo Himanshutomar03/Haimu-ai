@@ -89,12 +89,10 @@ jobs:
             ## HaimuAi v${{ steps.version.outputs.version }}
 
             ### 🆕 What's in this release
-            - 🎙️ **Voice transcription fixed** — now works for ALL users (Free Mode, ChatGPT linked, and licensed)
-            - 🤖 **Real ChatGPT session linking** — "Link ChatGPT" now opens a browser window, auto-detects your login, and extracts your OpenAI access token. No manual steps needed.
-            - 🔊 **OpenAI Whisper transcription** — when ChatGPT is linked, voice uses Whisper (OpenAI's official speech-to-text) automatically
-            - 💬 **ChatGPT as AI provider** — if you have ChatGPT linked and no Gemini key, HaimuAi uses GPT-4o-mini for all AI responses
-            - ⚡ **Smart provider fallback** — Free Mode (Gemini) → ChatGPT (OpenAI) → Server (licensed) — automatically picks what's available
-            - 🛡️ **SEB/Respondus/LockDown Browser bypass** — zero user interaction, detects within 2s
+            - ✅ **Chat & voice both fixed** — root cause was `window.aiChat` undefined due to a JS syntax error. Fully resolved with `_waitForAIChat()` guard and optional chaining on all call sites.
+            - 🎙️ **Mic + System audio** — voice captures both mic and speakers silently, no screen-share dialog.
+            - 🧹 **Simplified to 2 modes** — Free Mode (Gemini API keys) + Licensed Server. No external dependencies.
+            - 🛡️ **SEB/Respondus/LockDown Browser bypass** — zero user interaction, detects within 2s, auto-injects.
             - 🎨 **Premium glassmorphism UI** with gradients and micro-animations
 
             ### ⬇️ Download
@@ -103,22 +101,16 @@ jobs:
             | `HaimuAi-Setup-${{ steps.version.outputs.version }}.exe` | **Installer** (recommended) |
             | `HaimuAi-Portable-${{ steps.version.outputs.version }}.exe` | **Portable** — no install needed, just run |
 
-            ### 🔧 Three ways to use HaimuAi (no license needed for first two!)
+            ### 🔧 Two ways to use HaimuAi
 
-            #### 🆓 Option 1 — Free Mode (Gemini API key)
+            #### 🆓 Option 1 — Free Mode (Gemini API key, no license needed)
             1. Download and run either version above
             2. On the activation screen → press **✕** → click **⚙️** gear
             3. Go to **API Keys** → paste your [free Gemini key](https://aistudio.google.com/apikey) → enable **Free Mode** → Save
 
             > 💡 Add 2–3 keys for automatic quota failover — HaimuAi rotates keys when one hits the daily limit.
 
-            #### 🤖 Option 2 — Link ChatGPT (uses your ChatGPT account)
-            1. Download and run, skip activation with **✕**
-            2. Click **⚙️** gear → scroll to **ChatGPT Connection** → click **Link ChatGPT**
-            3. Sign into ChatGPT in the window that opens — linking happens automatically!
-            4. Voice transcription uses Whisper, AI chat uses GPT-4o-mini
-
-            #### 🔑 Option 3 — Licensed (full server-side AI, priority support)
+            #### 🔑 Option 2 — Licensed (server-side AI, priority support)
             - Enter your license key on the activation screen
 
           files: |
