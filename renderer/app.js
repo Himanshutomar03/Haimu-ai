@@ -55,12 +55,12 @@ class HaimuAiApp {
     // Load saved resume
     const savedResume = localStorage.getItem('haimuai_resume');
     if (savedResume) {
-      window.aiChat.setResume(savedResume);
+      window.aiChat?.setResume(savedResume);
       this.updateResumeUI(true);
     }
 
     // Load chat sessions
-    window.aiChat.loadSessions();
+    window.aiChat?.loadSessions();
 
     // Auto-focus input (only if autoFocus is enabled AND alwaysActive is false)
     if (window.settingsManager.get('autoFocus')) {
@@ -180,8 +180,8 @@ class HaimuAiApp {
           return;
         }
         if (command === 'interview') {
-          if (window.aiChat.isInterviewActive() || window.aiChat.isOnlineInterviewActive()) {
-            if (window.aiChat.isOnlineInterviewActive()) {
+          if (window.aiChat?.isInterviewActive() || window.aiChat?.isOnlineInterviewActive()) {
+            if (window.aiChat?.isOnlineInterviewActive()) {
               this.stopOnlineInterview();
             } else {
               this.stopInterview();
@@ -340,12 +340,12 @@ class HaimuAiApp {
         // Vision mode — send images + optional text to AI
         const images = attachments.map(a => a.dataUrl);
         const question = message || 'What do you see in this screenshot? Describe and help the user.';
-        fullResponse = await window.aiChat.analyzeScreenshots(images, question, language, true);
+        fullResponse = await window.aiChat?.analyzeScreenshots(images, question, language, true);
         this.lastAIResponse = fullResponse;
         this.updateMessage(aiMsgId, fullResponse, true);
       } else {
         // Text-only mode
-        await window.aiChat.sendMessage(
+        await window.aiChat?.sendMessage(
           message,
           this.currentCommand,
           language,
@@ -502,7 +502,7 @@ class HaimuAiApp {
     const welcome = document.getElementById('welcomeScreen');
     if (welcome) welcome.style.display = 'flex';
     
-    window.aiChat.newChat();
+    window.aiChat?.newChat();
     this.lastAIResponse = '';
     this.updateInterviewUI(false);
     this.showToast('Chat cleared', 'info');
@@ -521,9 +521,9 @@ class HaimuAiApp {
     if (welcome) welcome.style.display = 'flex';
 
     // Reset AI state
-    window.aiChat.newChat();
-    window.aiChat.chatSessions = [];
-    window.aiChat.saveSessions();
+    window.aiChat?.newChat();
+    if (window.aiChat) window.aiChat.chatSessions = [];
+    window.aiChat?.saveSessions();
 
     // Also clear persisted history from localStorage
     localStorage.removeItem('haimuai_sessions');
@@ -563,7 +563,7 @@ class HaimuAiApp {
     saveBtn?.addEventListener('click', () => {
       const text = resumeInput?.value.trim();
       if (text) {
-        window.aiChat.setResume(text);
+        window.aiChat?.setResume(text);
         localStorage.setItem('haimuai_resume', text);
         this.updateResumeUI(true);
         this.closePanel('resumeOverlay');
@@ -574,7 +574,7 @@ class HaimuAiApp {
     });
 
     clearBtn?.addEventListener('click', () => {
-      window.aiChat.clearResume();
+      window.aiChat?.clearResume();
       localStorage.removeItem('haimuai_resume');
       if (resumeInput) resumeInput.value = '';
       this.updateResumeUI(false);
@@ -621,7 +621,7 @@ class HaimuAiApp {
 
         try {
           // Use AI vision to extract resume text
-          const extractedText = await window.aiChat.analyzeScreenshot(
+          const extractedText = await window.aiChat?.analyzeScreenshot(
             dataUrl,
             'Extract ALL text content from this resume/CV image. Return ONLY the extracted text in a clean, structured format. Include: name, contact details, skills, experience, education, projects, certifications, and any other sections visible. Be thorough and accurate.',
             'text',
@@ -633,7 +633,7 @@ class HaimuAiApp {
           }
 
           // Auto-save the extracted text
-          window.aiChat.setResume(extractedText);
+          window.aiChat?.setResume(extractedText);
           localStorage.setItem('haimuai_resume', extractedText);
           // Also save the image for display
           localStorage.setItem('haimuai_resume_image', dataUrl);
@@ -712,7 +712,7 @@ class HaimuAiApp {
 
   openResumePanel() {
     const resumeInput = document.getElementById('resumeInput');
-    const savedResume = window.aiChat.getResume();
+    const savedResume = window.aiChat?.getResume();
     if (savedResume && resumeInput) {
       resumeInput.value = savedResume;
     }
@@ -780,7 +780,7 @@ class HaimuAiApp {
     });
 
     stopBtn?.addEventListener('click', () => {
-      if (window.aiChat.isOnlineInterviewActive()) {
+      if (window.aiChat?.isOnlineInterviewActive()) {
         this.stopOnlineInterview();
       } else {
         this.stopInterview();
@@ -863,7 +863,7 @@ class HaimuAiApp {
       reader.onload = async (e) => {
         const dataUrl = e.target.result;
         try {
-          const extractedText = await window.aiChat.analyzeScreenshot(
+          const extractedText = await window.aiChat?.analyzeScreenshot(
             dataUrl,
             'Extract ALL text content from this document/image. This is likely a job description, question paper, or study material. Return ONLY the raw extracted text in a clean, structured format. Be thorough — include every section, requirement, question, and detail visible.',
             'text',
@@ -911,10 +911,10 @@ class HaimuAiApp {
     if (welcome) welcome.style.display = 'none';
 
     // Pass uploaded document context to AI
-    window.aiChat.setInterviewDocument(this.interviewPdfText);
+    window.aiChat?.setInterviewDocument(this.interviewPdfText);
 
     // Start interview mode in AI
-    window.aiChat.startInterview(topic);
+    window.aiChat?.startInterview(topic);
     this.updateInterviewUI(true, topic);
 
     // Auto-send first message to get the first question
@@ -930,7 +930,7 @@ class HaimuAiApp {
     try {
       const language = document.getElementById('languageSelect')?.value || 'javascript';
       let fullResponse = '';
-      await window.aiChat.sendMessage(
+      await window.aiChat?.sendMessage(
         startMsg,
         'general',
         language,
@@ -947,7 +947,7 @@ class HaimuAiApp {
   }
 
   stopInterview() {
-    window.aiChat.stopInterview();
+    window.aiChat?.stopInterview();
     this.updateInterviewUI(false);
     const input = document.getElementById('userInput');
     if (input) input.placeholder = this.getPlaceholder('general');
@@ -989,10 +989,10 @@ class HaimuAiApp {
     if (welcome) welcome.style.display = 'none';
 
     // Pass uploaded document context to AI
-    window.aiChat.setInterviewDocument(this.interviewPdfText);
+    window.aiChat?.setInterviewDocument(this.interviewPdfText);
 
     // Start online interview mode in AI
-    window.aiChat.startOnlineInterview(topic);
+    window.aiChat?.startOnlineInterview(topic);
     this.updateInterviewUI(true, topic, true);
 
     const input = document.getElementById('userInput');
@@ -1005,7 +1005,7 @@ class HaimuAiApp {
   }
 
   stopOnlineInterview() {
-    window.aiChat.stopOnlineInterview();
+    window.aiChat?.stopOnlineInterview();
     this.updateInterviewUI(false);
     const input = document.getElementById('userInput');
     if (input) input.placeholder = this.getPlaceholder('general');
@@ -1040,7 +1040,7 @@ class HaimuAiApp {
     const list = document.getElementById('historyList');
     if (!list) return;
 
-    const sessions = window.aiChat.getSessions();
+    const sessions = window.aiChat?.getSessions();
     if (sessions.length === 0) {
       list.innerHTML = `
         <div class="history-empty">
@@ -1058,7 +1058,7 @@ class HaimuAiApp {
       const timeStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const icon = session.mode === 'interview' ? '🎯' : '💬';
       const msgCount = session.history.length;
-      const isActive = session.id === window.aiChat.currentSessionId;
+      const isActive = session.id === window.aiChat?.currentSessionId;
 
       return `
         <div class="history-item ${isActive ? 'active' : ''}" data-session-id="${session.id}">
@@ -1089,7 +1089,7 @@ class HaimuAiApp {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const sessionId = btn.dataset.deleteId;
-        window.aiChat.deleteSession(sessionId);
+        window.aiChat?.deleteSession(sessionId);
         this.renderHistoryList();
         this.showToast('Session deleted', 'info');
       });
@@ -1097,7 +1097,7 @@ class HaimuAiApp {
   }
 
   loadSession(sessionId) {
-    const session = window.aiChat.loadSession(sessionId);
+    const session = window.aiChat?.loadSession(sessionId);
     if (!session) return;
 
     // Rebuild chat UI from history
@@ -1247,7 +1247,7 @@ class HaimuAiApp {
       try {
         const language = document.getElementById('languageSelect')?.value || 'javascript';
         const images = shots.map(s => s.dataUrl);
-        const response = await window.aiChat.analyzeScreenshots(images, question, language, true);
+        const response = await window.aiChat?.analyzeScreenshots(images, question, language, true);
         this.lastAIResponse = response;
         this.updateMessage(aiMsgId, response, true);
       } catch (error) {
@@ -1355,7 +1355,7 @@ class HaimuAiApp {
         this.showToast('📸 Screenshot added! Type a message and send.', 'success');
 
         // Pre-fill prompt if in online interview mode
-        if (window.aiChat.isOnlineInterviewActive()) {
+        if (window.aiChat?.isOnlineInterviewActive()) {
           const input = document.getElementById('userInput');
           if (input && !input.value.trim()) {
             input.value = 'Answer this interview question for me';
@@ -1458,7 +1458,7 @@ class HaimuAiApp {
       const language = document.getElementById('languageSelect')?.value || 'javascript';
       const answerPrompt = 'Look at this screenshot carefully. Find ANY question visible — it could be a coding problem, MCQ, fill-in-the-blank, true/false, short answer, or interview question. Answer it completely and correctly. For MCQs: state the correct option with a brief explanation. For coding: provide the full working solution. For theory: give a clear, concise answer.';
 
-      const response = await window.aiChat.analyzeScreenshot(dataUrl, answerPrompt, language, true);
+      const response = await window.aiChat?.analyzeScreenshot(dataUrl, answerPrompt, language, true);
       this.lastAIResponse = response;
       this.updateMessage(aiMsgId, response, true);
 
@@ -1487,7 +1487,7 @@ class HaimuAiApp {
       const language = document.getElementById('languageSelect')?.value || 'javascript';
       const answerPrompt = 'Look at this screenshot carefully. Find ANY question visible — it could be a coding problem, MCQ, fill-in-the-blank, true/false, short answer, or interview question. Answer it completely and correctly. For MCQs: state the correct option with a brief explanation. For coding: provide the full working solution. For theory: give a clear, concise answer.';
 
-      const response = await window.aiChat.analyzeScreenshot(dataUrl, answerPrompt, language, true);
+      const response = await window.aiChat?.analyzeScreenshot(dataUrl, answerPrompt, language, true);
       this.lastAIResponse = response;
       this.updateMessage(aiMsgId, response, true);
 
@@ -1503,7 +1503,7 @@ class HaimuAiApp {
   updateScreenshotSyncIndicator() {
     const syncText = document.getElementById('screenshotSyncText');
     const syncEl = document.getElementById('screenshotChatSync');
-    const historyLen = window.aiChat.conversationHistory.length;
+    const historyLen = window.aiChat?.conversationHistory.length;
     
     if (historyLen > 0) {
       const msgCount = Math.floor(historyLen / 2);
@@ -2050,7 +2050,7 @@ class HaimuAiApp {
       const language = document.getElementById('languageSelect')?.value || 'javascript';
       let fullResponse = '';
 
-      await window.aiChat.sendMessage(
+      await window.aiChat?.sendMessage(
         `Here is a transcript of audio I just listened to from my system speakers (could be a Zoom/Meet call, lecture, YouTube video, etc.):\n\n--- TRANSCRIPT ---\n${transcript}\n--- END TRANSCRIPT ---\n\nPlease:\n1. Identify ALL questions that were asked in this transcript.\n2. Answer each question completely and correctly.\n3. If it's a lecture/explanation, summarize the key points.\n4. If there are coding problems mentioned, provide full solutions.\n5. Format your response clearly with headers for each question/topic.`,
         'general',
         language,
@@ -2314,3 +2314,4 @@ document.addEventListener('DOMContentLoaded', () => {
   app = new HaimuAiApp();
   window.app = app;
 });
+
