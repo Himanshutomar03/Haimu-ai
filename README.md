@@ -5,7 +5,7 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078d7.svg)
 ![Electron](https://img.shields.io/badge/Electron-30+-47848f.svg)
-![Version](https://img.shields.io/badge/version-3.3.0-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-3.3.1-brightgreen.svg)
 ![SEB](https://img.shields.io/badge/SEB%20bypass-native%20injection-blueviolet.svg)
 ![BitBlt](https://img.shields.io/badge/screenshot-BitBlt%20GDI-purple.svg)
 
@@ -13,25 +13,25 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 ## ⬇️ Download
 
-> 🆕 **v3.3.0** — Now includes **fully automatic SEB/Respondus/LockDown bypass** (no user interaction), premium UI upgrade, and a built-in Help panel. Just download and run.
+> 🆕 **v3.3.1** — Voice transcription fixed for all users + **real ChatGPT session linking** (auto-extracts your OpenAI token when you log into ChatGPT).
 
-**Latest Release: v3.3.0** — *Released October 1, 2026*
+**Latest Release: v3.3.1** — *Released October 6, 2026*
 
 ### 🔑 Licensed Version (with HaimuAi Server)
 No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Setup-3.3.0.exe) | ~80 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Portable-3.3.0.exe) | ~73 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Setup-3.3.1.exe) | ~80 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Portable-3.3.1.exe) | ~73 MB |
 
 ### 🆓 Free Mode — No Activation Key Required
-Use your own **free** Gemini API key — no license, no server, no payment. Add multiple keys for automatic failover.
+Use your own **free** Gemini API key — no license, no server, no payment.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Setup-3.3.0.exe) | ~80 MB |
-| 📦 **Portable** | [HaimuAi-Portable-3.3.0.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.0/HaimuAi-Portable-3.3.0.exe) | ~73 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Setup-3.3.1.exe) | ~80 MB |
+| 📦 **Portable** | [HaimuAi-Portable-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Portable-3.3.1.exe) | ~73 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
@@ -42,9 +42,28 @@ Use your own **free** Gemini API key — no license, no server, no payment. Add 
 
 > 💡 **Tip:** Add 2–3 keys to enable automatic failover — HaimuAi switches instantly when one key hits its daily quota.
 
+### 🤖 ChatGPT Mode — Link Your ChatGPT Account (NEW in v3.3.1)
+No API key, no license needed — just log into ChatGPT once!
+
+1. Download & run, skip activation with **✕**
+2. Click **⚙️** gear → scroll to **ChatGPT Connection** → click **Link ChatGPT**
+3. A browser window opens — sign in to ChatGPT — **linking happens automatically**!
+4. Voice now uses **OpenAI Whisper**, AI chat uses **GPT-4o-mini**
+
 > 🛡️ **SEB/Respondus/LockDown bypass is fully automatic** — just launch HaimuAi, it detects exam browsers within 2 seconds and injects automatically. Press `Ctrl+Shift+F` to force re-inject at any time.
 
 > 🔗 [View all releases](https://github.com/Himanshutomar03/Haimu-ai/releases)
+
+---
+
+## 🆕 What's New in v3.3.1 — Voice Fix + Real ChatGPT Linking
+
+- **🎙️ Voice transcription fixed** — works for ALL users (Free/ChatGPT/Licensed). Root cause was `window.aiChat.apiKey` lookup that never exists; replaced with proper `transcribeAudio()` routing.
+- **🤖 Real ChatGPT session linking** — "Link ChatGPT" opens a real Electron window to chatgpt.com, waits for login, extracts the `next-auth` session cookie, then calls `/api/auth/session` to get the real OpenAI access token. Fully automatic.
+- **🔊 OpenAI Whisper transcription** — when ChatGPT is linked, voice transcription uses `whisper-1` via the official OpenAI API.
+- **💬 GPT-4o-mini AI chat** — ChatGPT-linked users get full AI chat via OpenAI API (no license needed).
+- **⚡ Smart provider chain** — Free Mode (Gemini) → ChatGPT (OpenAI) → Server (Licensed) — picks the first available automatically.
+- **📝 Better errors** — when no provider is configured, the error tells you exactly how to fix it.
 
 ---
 
@@ -55,8 +74,7 @@ Use your own **free** Gemini API key — no license, no server, no payment. Add 
 - **🔰 Shellcode Fallback** — If DLL compilation fails, a 34-byte x64 stub calls `SetWindowDisplayAffinity(hwnd, WDA_NONE)` directly per-window. Also queued via `QueueUserAPC` on all target threads.
 - **🔄 2s Watchdog** — Background loop re-detects if SEB re-applies protection and re-injects automatically.
 - **🖥️ PrintWindow Capture** — When SEB is active, screenshots use `PrintWindow(PW_RENDERFULLCONTENT)` to capture the exam window directly — works even if BitBlt is blocked.
-- **🎨 SEB Defense Banner** — Indigo banner appears when SEB is detected, shows live injection status (`Scanning / Injecting (shellcode #2) / ✓ Protection cleared`) with a **Re-inject** button.
-- **🔵 Shield Indicator** — Title bar icon: cyan pulse (SEB detected) → amber spin (injecting) → green (cleared).
+- **🎨 SEB Defense Banner** — Indigo banner appears when SEB is detected, shows live injection status with a **Re-inject** button.
 - **⌨️ New Shortcut** — `Ctrl+Shift+F` — Force immediate re-injection at any time.
 
 ---
