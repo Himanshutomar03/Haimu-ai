@@ -24,31 +24,49 @@ class VoiceRecorder {
   }
 
   /**
-   * Capture system audio (loopback) — hears what's playing through speakers
-   * This captures Zoom/Meet/Teams calls, YouTube, etc.
+   * Capture system audio (loopback) — hears what's playing through speakers.
+   * Primary: silent Electron desktopCapturer (no dialog) via IPC.
+   * Fallback: getDisplayMedia (shows share dialog).
    */
   async getSystemAudioStream() {
+    // ── Primary: silent loopback via desktopCapturer IPC ─────────────────────
     try {
-      // getDisplayMedia with audio:true triggers the loopback handler in main.js
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { width: 1, height: 1, frameRate: 1 }, // minimal video (required by API)
-        audio: true
-      });
+      const sources = await window.haimuai.getDesktopSources();
+      const source  = sources?.[0]; // any screen source — we only need the audio
 
-      // Remove video tracks — we only need audio
-      stream.getVideoTracks().forEach(track => {
-        track.stop();
-        stream.removeTrack(track);
-      });
-
-      if (stream.getAudioTracks().length === 0) {
-        throw new Error('No system audio track available');
+      if (source?.id) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            mandatory: {
+              chromeMediaSource:   'desktop',
+              chromeMediaSourceId:  source.id,
+            },
+          },
+          video: false,
+        });
+        if (stream.getAudioTracks().length > 0) {
+          console.log('[Voice] System audio captured silently (desktopCapturer)');
+          return stream;
+        }
       }
+    } catch (e) {
+      console.warn('[Voice] Silent loopback failed, trying getDisplayMedia:', e.message);
+    }
 
-      console.log('[Voice] System audio stream acquired');
-      return stream;
+    // ── Fallback: getDisplayMedia (user must click "Share") ───────────────────
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { width: 1, height: 1, frameRate: 1 },
+        audio: true,
+      });
+      stream.getVideoTracks().forEach(t => { t.stop(); stream.removeTrack(t); });
+      if (stream.getAudioTracks().length > 0) {
+        console.log('[Voice] System audio captured via getDisplayMedia');
+        return stream;
+      }
+      throw new Error('No audio tracks in display media');
     } catch (err) {
-      console.error('[Voice] System audio capture failed:', err);
+      console.error('[Voice] System audio capture failed:', err.message);
       return null;
     }
   }
@@ -176,6 +194,16 @@ class VoiceRecorder {
         if (this.onStatusChange) this.onStatusChange('transcribing');
 
         try {
+          // Wait up to 3s for aiChat to be ready (async init guard)
+          let retries = 0;
+          while (!window.aiChat?.transcribeAudio && retries < 30) {
+            await new Promise(r => setTimeout(r, 100));
+            retries++;
+          }
+          if (!window.aiChat?.transcribeAudio) {
+            throw new Error('AI module not ready. Please restart the app.');
+          }
+
           let transcript;
           window.app?.showToast('🔄 Transcribing audio...', 'info');
           transcript = await window.aiChat.transcribeAudio(audioBlob);
@@ -500,23 +528,39 @@ class SystemAudioListener {
     this._listenStartTime = Date.now();
 
     try {
-      // Capture system audio via loopback (main.js handler returns loopback audio)
-      this.systemStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { width: 1, height: 1, frameRate: 1 }, // minimal video (required by API)
-        audio: true
-      });
-
-      // Remove video tracks — we only need audio
-      this.systemStream.getVideoTracks().forEach(track => {
-        track.stop();
-        this.systemStream.removeTrack(track);
-      });
-
-      if (this.systemStream.getAudioTracks().length === 0) {
-        throw new Error('No system audio track available');
+      // ── Primary: silent desktopCapturer loopback (no dialog) ─────────────
+      let systemStream = null;
+      try {
+        const sources = await window.haimuai.getDesktopSources();
+        const source  = sources?.[0];
+        if (source?.id) {
+          const s = await navigator.mediaDevices.getUserMedia({
+            audio: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: source.id } },
+            video: false,
+          });
+          if (s.getAudioTracks().length > 0) {
+            systemStream = s;
+            console.log('[Listen] System audio captured silently');
+          }
+        }
+      } catch (e) {
+        console.warn('[Listen] Silent loopback failed, trying getDisplayMedia:', e.message);
       }
 
-      console.log('[Listen] System audio stream acquired (no mic)');
+      // ── Fallback: getDisplayMedia (user picks screen) ─────────────────────
+      if (!systemStream) {
+        const s = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: 1, height: 1, frameRate: 1 },
+          audio: true,
+        });
+        s.getVideoTracks().forEach(t => { t.stop(); s.removeTrack(t); });
+        if (s.getAudioTracks().length === 0) throw new Error('No audio tracks in display media');
+        systemStream = s;
+      }
+
+      this.systemStream = systemStream;
+
+      console.log('[Listen] System audio stream ready');
 
       // Setup audio analyser for waveform visualization
       this.audioContext = new AudioContext({ sampleRate: 16000 });
@@ -639,11 +683,17 @@ class SystemAudioListener {
 
   /**
    * Transcribe an audio chunk using the unified aiChat.transcribeAudio() which
-   * routes through Free Mode or Server/Paid Mode automatically.
+   * routes through Free Mode, ChatGPT (Whisper), or Server/Paid Mode automatically.
    */
   async _transcribeChunk(audioBlob) {
-    if (!window.aiChat) {
-      throw new Error('AI Chat module not loaded');
+    // Wait up to 3s for aiChat to initialize (async _initServer guard)
+    let retries = 0;
+    while (!window.aiChat?.transcribeAudio && retries < 30) {
+      await new Promise(r => setTimeout(r, 100));
+      retries++;
+    }
+    if (!window.aiChat?.transcribeAudio) {
+      throw new Error('AI module not ready. Please restart the app.');
     }
     return window.aiChat.transcribeAudio(audioBlob);
   }

@@ -1208,6 +1208,19 @@ ipcMain.handle('take-screenshot', async () => {
   return null;
 });
 
+// Returns screen/window source IDs for silent system audio loopback in the renderer.
+// The renderer uses these with chromeMediaSource:'desktop' to capture what's playing
+// through speakers (Zoom/Teams/YouTube/etc.) without any dialog.
+ipcMain.handle('get-desktop-sources', async () => {
+  try {
+    const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
+    return sources.map(s => ({ id: s.id, name: s.name }));
+  } catch (e) {
+    console.error('[DesktopSources] Failed:', e.message);
+    return [];
+  }
+});
+
 // ---- Real Keystroke Simulation (Auto-Type) ----
 // Uses PowerShell to simulate keypresses in the foreground window
 // This is used to type AI responses into exam browser textboxes

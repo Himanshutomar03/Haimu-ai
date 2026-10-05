@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('haimuai', {
 
   // Screenshot
   takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
+  // Desktop sources — used for silent system audio loopback capture in voice module
+  getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources'),
 
   // Clipboard
   getClipboard: () => ipcRenderer.invoke('get-clipboard'),

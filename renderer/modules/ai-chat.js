@@ -59,6 +59,7 @@ class AIChat {
     } catch (e) {
       console.error('[AIChat] Failed to get server config:', e);
     }
+  }  // ← end of _initServer()
 
   /** Refresh the license token (called after heartbeat renews it) */
   async _refreshToken() {
