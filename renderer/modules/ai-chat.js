@@ -11,6 +11,10 @@ class AIChat {
     this.freeApiKeys = [];        // [{ provider, key, label }]
     this.freeApiKeyIndex = 0;     // Currently active key index
 
+    // ---- ChatGPT Session (extracted from logged-in chatgpt.com window) ----
+    this.chatgptSessionToken = ''; // next-auth session cookie value
+    this.chatgptAccessToken  = ''; // Real OpenAI access token (works with api.openai.com)
+
     this.conversationHistory = [];
     this.isStreaming = false;
     this.abortController = null;
@@ -31,7 +35,7 @@ class AIChat {
     this._activeRequests = 0;
     this._queue = [];
 
-    // Fetch server URL and token from main process
+    // Fetch server URL, token, and ChatGPT session from main process
     this._initServer();
   }
 
@@ -45,10 +49,16 @@ class AIChat {
       this.freeModeEnabled = fm.enabled && (fm.keys || []).length > 0;
       this.freeApiKeys = fm.keys || [];
       this.freeApiKeyIndex = fm.activeIndex || 0;
+
+      // Load ChatGPT session tokens if previously linked
+      const chatgpt = await window.haimuai.getChatGPTToken?.();
+      if (chatgpt) {
+        this.chatgptSessionToken = chatgpt.sessionToken || '';
+        this.chatgptAccessToken  = chatgpt.accessToken  || '';
+      }
     } catch (e) {
       console.error('[AIChat] Failed to get server config:', e);
     }
-  }
 
   /** Refresh the license token (called after heartbeat renews it) */
   async _refreshToken() {
@@ -396,7 +406,7 @@ CRITICAL RULES:
   async sendMessage(message, command = 'general', language = 'javascript', onChunk = null) {
     await this._refreshToken();
 
-    // Free mode: use user-supplied API key directly
+    // 1) Free Mode: use user-supplied Gemini API key directly
     if (this.freeModeEnabled && this.freeApiKeys.length > 0) {
       await this._refreshFreeMode();
       const systemPrompt = this.getSystemPrompt(command, language);
@@ -411,19 +421,35 @@ CRITICAL RULES:
       }
     }
 
+    // 2) ChatGPT Session: use the extracted OpenAI access token (no license needed)
+    if (this.chatgptAccessToken) {
+      const systemPrompt = this.getSystemPrompt(command, language);
+      if (this.interviewMode) this.interviewQuestionCount++;
+      this.conversationHistory.push({ role: 'user', content: message });
+      try {
+        return await this._sendChatGPTMessage(message, systemPrompt, onChunk);
+      } catch (error) {
+        this.isStreaming = false;
+        if (error.name === 'AbortError') return '[Response cancelled]';
+        // Fall through to server mode if ChatGPT fails
+        console.warn('[AIChat] ChatGPT mode failed, trying server mode:', error.message);
+        this.conversationHistory.pop(); // remove the message we just pushed
+      }
+    }
+
+    // 3) Server / Paid Mode: proxy through HaimuAi server
     if (!this.licenseToken) {
-      throw new Error('License token missing. Please restart HaimuAi.');
+      if (this.chatgptAccessToken) {
+        throw new Error('ChatGPT connection failed. Please re-link ChatGPT or add a Gemini API key in Settings.');
+      }
+      throw new Error('No AI provider configured. Please add a Gemini API key in Settings › Free Mode, or activate a license.');
     }
 
     this.isStreaming = true;
     this.abortController = new AbortController();
 
     const systemPrompt = this.getSystemPrompt(command, language);
-
-    if (this.interviewMode) {
-      this.interviewQuestionCount++;
-    }
-
+    if (this.interviewMode) this.interviewQuestionCount++;
     this.conversationHistory.push({ role: 'user', content: message });
 
     try {
@@ -432,6 +458,80 @@ CRITICAL RULES:
       this.isStreaming = false;
       if (error.name === 'AbortError') return '[Response cancelled]';
       throw error;
+    }
+  }
+
+  // ============================================================
+  // CHATGPT SESSION — OpenAI API via extracted access token
+  // ============================================================
+  async _sendChatGPTMessage(message, systemPrompt, onChunk) {
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...this.conversationHistory.slice(-20).map(h => ({
+        role: h.role === 'assistant' ? 'assistant' : 'user',
+        content: h.content,
+      })),
+    ];
+
+    this.isStreaming = true;
+    this.abortController = new AbortController();
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.chatgptAccessToken}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages,
+        stream: !!onChunk,
+        max_tokens: 4096,
+        temperature: 0.7,
+      }),
+      signal: this.abortController.signal,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `OpenAI API error: ${response.status}`);
+    }
+
+    if (onChunk) {
+      // SSE streaming
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr || jsonStr === '[DONE]') continue;
+          try {
+            const chunk = JSON.parse(jsonStr)?.choices?.[0]?.delta?.content || '';
+            if (chunk) { fullText += chunk; onChunk(chunk, fullText); }
+          } catch (_) {}
+        }
+      }
+
+      this.conversationHistory.push({ role: 'assistant', content: fullText });
+      this.isStreaming = false;
+      this.saveCurrentToSession();
+      return fullText;
+    } else {
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || 'No response.';
+      this.conversationHistory.push({ role: 'assistant', content: text });
+      this.isStreaming = false;
+      this.saveCurrentToSession();
+      return text;
     }
   }
 
@@ -942,10 +1042,49 @@ CRITICAL RULES:
       throw lastError || new Error('All API keys exhausted during transcription.');
     }
 
+    // ── ChatGPT / OpenAI Whisper ──────────────────────────────────────────────
+    // Available when user has linked their ChatGPT account (OpenAI access token extracted)
+    if (this.chatgptAccessToken) {
+      try {
+        // Build multipart form — Whisper needs the raw audio file, not base64
+        const binaryStr = atob(base64Audio);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+        const audioBlob = new Blob([bytes], { type: effectiveMime });
+
+        const form = new FormData();
+        form.append('file', audioBlob, 'audio.webm');
+        form.append('model', 'whisper-1');
+        form.append('response_format', 'text');
+
+        const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${this.chatgptAccessToken}` },
+          body: form,
+        });
+
+        if (whisperRes.ok) {
+          const text = await whisperRes.text();
+          return text.trim();
+        }
+        const errData = await whisperRes.json().catch(() => ({}));
+        console.warn('[Transcribe] Whisper failed:', errData?.error?.message || whisperRes.status);
+        // Fall through to server mode
+      } catch (whisperErr) {
+        console.warn('[Transcribe] Whisper error:', whisperErr.message);
+        // Fall through to server mode
+      }
+    }
+
     // ── Server / Paid Mode ────────────────────────────────────────────────────
     await this._refreshToken();
     if (!this.licenseToken) {
-      throw new Error('License token missing. Please restart HaimuAi.');
+      throw new Error(
+        'No AI provider configured for transcription.\n' +
+        'Options: (1) Add a Gemini API key in Settings › Free Mode, ' +
+        '(2) Link ChatGPT via Settings, or ' +
+        '(3) Activate a HaimuAi license.'
+      );
     }
 
     const response = await fetch(`${this.serverUrl}/api/ai/transcribe`, {
@@ -965,6 +1104,7 @@ CRITICAL RULES:
     const data = await response.json();
     return (data.text || '').trim();
   }
+
 
   cancelStream() {
     if (this.abortController) {

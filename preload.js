@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld('haimuai', {
   saveFreeMode: (data) => ipcRenderer.invoke('save-free-mode', data),
   getFreeModeActive: () => ipcRenderer.invoke('get-free-mode-active'),
 
+  // ChatGPT Session Link
+  linkChatGPT: () => ipcRenderer.invoke('link-chatgpt'),
+  getChatGPTToken: () => ipcRenderer.invoke('get-chatgpt-token'),
+  saveChatGPTToken: (token) => ipcRenderer.invoke('save-chatgpt-token', token),
+  clearChatGPTToken: () => ipcRenderer.invoke('clear-chatgpt-token'),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
@@ -71,6 +77,7 @@ contextBridge.exposeInMainWorld('haimuai', {
   onLicenseRevoked: (callback) => ipcRenderer.on('license-revoked', (_, reason) => callback(reason)),
   onAffinityStatus: (callback) => ipcRenderer.on('affinity-status', (_, status) => callback(status)),
   onSebModeChanged: (callback) => ipcRenderer.on('seb-mode-changed', (_, active) => callback(active)),
+  onChatGPTLinked: (callback) => ipcRenderer.on('chatgpt-session-token', (_, token) => callback(token)),
 
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)

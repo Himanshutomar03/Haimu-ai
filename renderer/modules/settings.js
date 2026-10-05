@@ -291,7 +291,7 @@ class SettingsManager {
   }
 
   // ============================================================
-  // ChatGPT Connection (opens chatgpt.com in system browser)
+  // ChatGPT Connection (real Electron window — extracts session token)
   // ============================================================
   bindChatGPTConnection() {
     // Restore persisted state
@@ -299,33 +299,59 @@ class SettingsManager {
     this._chatgptLinked = linked;
     this._updateChatGPTUI();
 
-    document.getElementById('btnLinkChatGPT')?.addEventListener('click', () => {
-      // Open ChatGPT in default browser
-      window.open('https://chatgpt.com', '_blank');
+    // Load stored tokens into aiChat on startup
+    if (linked) {
+      window.haimuai.getChatGPTToken?.().then(data => {
+        if (window.aiChat && data) {
+          window.aiChat.chatgptAccessToken  = data.accessToken  || '';
+          window.aiChat.chatgptSessionToken = data.sessionToken || '';
+        }
+      });
+    }
 
-      // Show the "waiting for confirmation" notice
-      const notice = document.getElementById('chatgptLinkingNotice');
-      const hint   = document.getElementById('chatgptLinkHint');
-      if (notice) notice.style.display = 'flex';
-      if (hint)   hint.style.display   = 'none';
-    });
-
-    document.getElementById('btnConfirmChatGPT')?.addEventListener('click', () => {
+    // Listen for successful token extraction from main process (auto-fires after login)
+    window.haimuai.onChatGPTLinked?.((data) => {
+      const sessionToken = (typeof data === 'string') ? data : (data?.sessionToken || '');
+      const accessToken  = (typeof data === 'object') ? (data?.accessToken || '') : '';
+      if (!sessionToken && !accessToken) return;
       this._chatgptLinked = true;
       localStorage.setItem('haimuai_chatgpt_linked', 'true');
       this._updateChatGPTUI();
-
-      // Show a toast if available
-      window.app?.showToast('✅ ChatGPT linked successfully!', 'success');
+      if (window.aiChat) {
+        window.aiChat.chatgptSessionToken = sessionToken;
+        window.aiChat.chatgptAccessToken  = accessToken;
+      }
+      const msg = accessToken
+        ? '✅ ChatGPT linked! AI chat + transcription now use your OpenAI account.'
+        : '✅ ChatGPT session linked. Voice transcription will use your account.';
+      window.app?.showToast(msg, 'success');
     });
 
-    document.getElementById('btnUnlinkChatGPT')?.addEventListener('click', () => {
+    document.getElementById('btnLinkChatGPT')?.addEventListener('click', async () => {
+      const notice = document.getElementById('chatgptLinkingNotice');
+      const hint   = document.getElementById('chatgptLinkHint');
+      if (notice) notice.style.display = 'flex';
+      if (hint)   { hint.style.display = 'block'; hint.textContent = '⏳ Sign into ChatGPT in the window that just opened — linking happens automatically...'; }
+      try {
+        await window.haimuai.linkChatGPT();
+      } catch (e) {
+        window.app?.showToast('❌ Could not open ChatGPT window: ' + e.message, 'error');
+      }
+    });
+
+    document.getElementById('btnUnlinkChatGPT')?.addEventListener('click', async () => {
       this._chatgptLinked = false;
       localStorage.removeItem('haimuai_chatgpt_linked');
+      if (window.aiChat) {
+        window.aiChat.chatgptSessionToken = '';
+        window.aiChat.chatgptAccessToken  = '';
+      }
+      await window.haimuai.clearChatGPTToken?.();
       this._updateChatGPTUI();
       window.app?.showToast('ChatGPT unlinked.', 'info');
     });
   }
+
 
   _updateChatGPTUI() {
     const group   = document.getElementById('chatgptConnectionGroup');
@@ -341,7 +367,7 @@ class SettingsManager {
       if (linkBtn)  linkBtn.style.display = 'none';
       if (unlinkBtn) unlinkBtn.style.display = 'inline-flex';
       if (notice)   notice.style.display = 'none';
-      if (hint)     { hint.textContent = 'Your ChatGPT account is linked. You can chat at chatgpt.com or unlink below.'; hint.style.display = 'block'; }
+      if (hint)     { hint.textContent = '\u2705 Your ChatGPT account is linked — AI + voice transcription use your OpenAI account. Click Unlink to disconnect.'; hint.style.display = 'block'; }
     } else {
       if (group)    group.classList.remove('linked');
       if (status)   { status.textContent = 'Not linked'; status.className = 'connection-status'; }
