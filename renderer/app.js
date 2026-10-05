@@ -11,6 +11,21 @@ class HaimuAiApp {
     this.init();
   }
 
+  /**
+   * Wait up to 5 seconds for window.aiChat to be ready.
+   * ai-chat.js assigns window.aiChat synchronously but calls _initServer() async.
+   * This guards against any timing issues on slow machines or first launch.
+   */
+  async _waitForAIChat(timeoutMs = 5000) {
+    const start = Date.now();
+    while (!window.aiChat?.sendMessage) {
+      if (Date.now() - start > timeoutMs) {
+        throw new Error('AI module failed to initialize. Please restart HaimuAi.');
+      }
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+
   async init() {
     // Load settings
     await window.settingsManager.load();
@@ -33,6 +48,9 @@ class HaimuAiApp {
     this.setupHistory();
     this.setupAffinityBypassUI();
     this.setupHelp();
+
+    // Wait for aiChat to be ready before using it
+    await this._waitForAIChat();
 
     // Load saved resume
     const savedResume = localStorage.getItem('haimuai_resume');
@@ -313,6 +331,9 @@ class HaimuAiApp {
     const aiMsgId = this.addMessage('ai', null, true);
 
     try {
+      // Ensure aiChat is ready before every call
+      await this._waitForAIChat();
+
       let fullResponse = '';
 
       if (attachments.length > 0) {
