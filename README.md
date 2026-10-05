@@ -5,7 +5,7 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078d7.svg)
 ![Electron](https://img.shields.io/badge/Electron-30+-47848f.svg)
-![Version](https://img.shields.io/badge/version-3.3.1-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-3.3.2-brightgreen.svg)
 ![SEB](https://img.shields.io/badge/SEB%20bypass-native%20injection-blueviolet.svg)
 ![BitBlt](https://img.shields.io/badge/screenshot-BitBlt%20GDI-purple.svg)
 
@@ -13,25 +13,25 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 ## ⬇️ Download
 
-> 🆕 **v3.3.1** — Voice transcription fixed for all users + **real ChatGPT session linking** (auto-extracts your OpenAI token when you log into ChatGPT).
+> 🔴 **v3.3.2** — Critical hotfix: voice transcription now actually works (missing closing brace in AI module caused silent crash). Mic + system audio captured together with no dialog.
 
-**Latest Release: v3.3.1** — *Released October 6, 2026*
+**Latest Release: v3.3.2** — *Released October 6, 2026*
 
 ### 🔑 Licensed Version (with HaimuAi Server)
 No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Setup-3.3.1.exe) | ~80 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Portable-3.3.1.exe) | ~73 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.2/HaimuAi-Setup-3.3.2.exe) | ~80 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.2/HaimuAi-Portable-3.3.2.exe) | ~73 MB |
 
 ### 🆓 Free Mode — No Activation Key Required
 Use your own **free** Gemini API key — no license, no server, no payment.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Setup-3.3.1.exe) | ~80 MB |
-| 📦 **Portable** | [HaimuAi-Portable-3.3.1.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.1/HaimuAi-Portable-3.3.1.exe) | ~73 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.3.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.2/HaimuAi-Setup-3.3.2.exe) | ~80 MB |
+| 📦 **Portable** | [HaimuAi-Portable-3.3.2.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.2/HaimuAi-Portable-3.3.2.exe) | ~73 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
@@ -56,6 +56,15 @@ No API key, no license needed — just log into ChatGPT once!
 
 ---
 
+## 🔴 Hotfix v3.3.2 — Transcription Actually Works Now
+
+- **🐛 Root cause found & fixed**: `ai-chat.js`'s `_initServer()` method was missing a closing `}` — this caused a **JavaScript syntax error** that prevented `window.aiChat = new AIChat()` from ever executing. Every voice transcription call threw `Cannot read properties of undefined (reading 'transcribeAudio')` because `window.aiChat` was `undefined`.
+- **🎤 Mic + System audio together** — the old approach called `getDisplayMedia()` which shows an intrusive screen-picker dialog. Now uses **Electron `desktopCapturer` via IPC** silently. Mic is automatically mixed with system audio — no dialog, no clicks.
+- **🛡️ Readiness guard** — added a 3-second wait loop before every transcription call, so even if there's a future async init delay, it gracefully waits instead of crashing.
+- **🔊 Listen mode (Alt+L)** — also updated to silent desktopCapturer capture.
+
+---
+
 ## 🆕 What's New in v3.3.1 — Voice Fix + Real ChatGPT Linking
 
 - **🎙️ Voice transcription fixed** — works for ALL users (Free/ChatGPT/Licensed). Root cause was `window.aiChat.apiKey` lookup that never exists; replaced with proper `transcribeAudio()` routing.
@@ -63,7 +72,6 @@ No API key, no license needed — just log into ChatGPT once!
 - **🔊 OpenAI Whisper transcription** — when ChatGPT is linked, voice transcription uses `whisper-1` via the official OpenAI API.
 - **💬 GPT-4o-mini AI chat** — ChatGPT-linked users get full AI chat via OpenAI API (no license needed).
 - **⚡ Smart provider chain** — Free Mode (Gemini) → ChatGPT (OpenAI) → Server (Licensed) — picks the first available automatically.
-- **📝 Better errors** — when no provider is configured, the error tells you exactly how to fix it.
 
 ---
 
