@@ -282,6 +282,45 @@ router.post('/stream', requireActiveLicense, async (req, res) => {
   }
 });
 
+// ─── POST /api/ai/transcribe ─────────────────────────────────────────────────
+// Accepts { audioBase64, mimeType } and returns { text } with the transcription
+router.post('/transcribe', requireActiveLicense, async (req, res) => {
+  const { audioBase64, mimeType = 'audio/webm' } = req.body;
+
+  if (!audioBase64) {
+    return res.status(400).json({ error: 'audioBase64 is required' });
+  }
+
+  const body = {
+    contents: [{
+      parts: [
+        { text: 'Transcribe this audio accurately. Return ONLY the spoken words, nothing else. If no speech is detected return an empty string.' },
+        { inline_data: { mime_type: mimeType, data: audioBase64 } }
+      ]
+    }],
+    generationConfig: { temperature: 0 }
+  };
+
+  try {
+    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', body, req.licenseInfo);
+
+    if (!geminiRes) {
+      return res.status(503).json({ error: 'All API keys are temporarily exhausted. Try again in a moment.' });
+    }
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      return res.status(geminiRes.status).json({ error: `Gemini transcription error: ${errText}` });
+    }
+
+    const data = await geminiRes.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    supabase.rpc('increment_usage', { license_key: req.licenseKey }).catch(() => {});
+    return res.json({ text: text.trim() });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Admin: License key pool status ──────────────────────────────────────────
 router.get('/keys/status', requireAdmin, async (req, res) => {
   const { data: licenses } = await supabase

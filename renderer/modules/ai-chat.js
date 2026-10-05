@@ -856,6 +856,116 @@ CRITICAL RULES:
     return this._analyzeServerVision([imageData], systemContent, question, syncWithChat);
   }
 
+  // ============================================================
+  // AUDIO TRANSCRIPTION — works in both Free Mode and Server Mode
+  // ============================================================
+  /**
+   * Transcribe an audio Blob or base64 string using Gemini.
+   * Automatically routes through Free Mode (user's own API key) or
+   * Server Mode (paid/licensed proxy) depending on current settings.
+   *
+   * @param {Blob|string} audioSource - Audio Blob OR base64 string
+   * @param {string} [mimeType]       - MIME type, auto-detected from Blob if omitted
+   * @returns {Promise<string>}       - Transcribed text
+   */
+  async transcribeAudio(audioSource, mimeType) {
+    // ── Convert Blob → base64 if needed ──────────────────────────────────────
+    let base64Audio;
+    let effectiveMime;
+
+    if (audioSource instanceof Blob) {
+      effectiveMime = mimeType || audioSource.type || 'audio/webm';
+      const arrayBuffer = await audioSource.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      base64Audio = btoa(binary);
+    } else {
+      // Already a base64 string — strip data-URI prefix if present
+      effectiveMime = mimeType || 'audio/webm';
+      base64Audio = (audioSource || '').replace(/^data:[^;]+;base64,/, '');
+    }
+
+    // ── Free Mode ─────────────────────────────────────────────────────────────
+    if (this.freeModeEnabled && this.freeApiKeys.length > 0) {
+      await this._refreshFreeMode();
+
+      const totalKeys = this.freeApiKeys.length;
+      let lastError = null;
+
+      for (let attempt = 0; attempt < totalKeys; attempt++) {
+        const keyObj = this._getActiveFreeKey();
+        if (!keyObj?.key) break;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${keyObj.key}`;
+        const body = {
+          contents: [{
+            parts: [
+              { text: 'Transcribe this audio accurately. Return ONLY the spoken words, nothing else. If no speech is detected return an empty string.' },
+              { inline_data: { mime_type: effectiveMime, data: base64Audio } }
+            ]
+          }],
+          generationConfig: { temperature: 0 }
+        };
+
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            return text.trim();
+          }
+
+          const errData = await response.json().catch(() => ({}));
+          lastError = new Error(errData?.error?.message || `Gemini transcription error: ${response.status}`);
+
+          if (response.status === 429 || response.status === 403) {
+            const currentIdx = this.freeApiKeyIndex;
+            const hasNext = this._rotateFreeKey(currentIdx);
+            if (!hasNext) break;
+            continue;
+          }
+          break;
+        } catch (err) {
+          lastError = err;
+          break;
+        }
+      }
+
+      throw lastError || new Error('All API keys exhausted during transcription.');
+    }
+
+    // ── Server / Paid Mode ────────────────────────────────────────────────────
+    await this._refreshToken();
+    if (!this.licenseToken) {
+      throw new Error('License token missing. Please restart HaimuAi.');
+    }
+
+    const response = await fetch(`${this.serverUrl}/api/ai/transcribe`, {
+      method: 'POST',
+      headers: this._authHeaders(),
+      body: JSON.stringify({ audioBase64: base64Audio, mimeType: effectiveMime }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      if (err.revoked === true) {
+        throw new Error('License revoked. The app will restart automatically in a moment.');
+      }
+      throw new Error(err.error || `Transcription server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return (data.text || '').trim();
+  }
+
   cancelStream() {
     if (this.abortController) {
       this.abortController.abort();

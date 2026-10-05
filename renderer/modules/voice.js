@@ -177,17 +177,8 @@ class VoiceRecorder {
 
         try {
           let transcript;
-          const provider = window.aiChat?.provider || 'gemini';
-
-          if (provider === 'ollama') {
-            // Offline: use browser Web Speech API (no internet required)
-            window.app?.showToast('🎤 Transcribing offline...', 'info');
-            transcript = await this.transcribeWithWebSpeech(audioBlob);
-          } else {
-            // Cloud: use Gemini audio transcription
-            window.app?.showToast('🔄 Transcribing audio with Gemini...', 'info');
-            transcript = await this.transcribeWithGemini(audioBlob);
-          }
+          window.app?.showToast('🔄 Transcribing audio...', 'info');
+          transcript = await window.aiChat.transcribeAudio(audioBlob);
 
           if (this.onResult) this.onResult(transcript, true);
           if (this.onEnd) this.onEnd(transcript);
@@ -298,50 +289,12 @@ class VoiceRecorder {
   }
 
   async transcribeWithGemini(audioBlob) {
-    const apiKey = window.aiChat?.apiKey;
-    if (!apiKey) {
-      throw new Error('Gemini API key not set');
+    // Delegate to the unified transcribeAudio() in ai-chat.js which handles
+    // both Free Mode (user's own Gemini key) and Server/Paid Mode (proxy)
+    if (!window.aiChat) {
+      throw new Error('AI Chat module not loaded');
     }
-
-    // Convert blob to base64
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64Audio = btoa(binary);
-    const mimeType = audioBlob.type || 'audio/webm';
-
-    const body = {
-      contents: [{
-        parts: [
-          { text: 'Transcribe this audio accurately. Return only the spoken words, nothing else.' },
-          { inline_data: { mime_type: mimeType, data: base64Audio } }
-        ]
-      }],
-      generationConfig: { temperature: 0 }
-    };
-
-    const model = window.aiChat?.model || 'gemini-2.5-flash';
-    const baseURL = window.aiChat?.baseURL || 'https://generativelanguage.googleapis.com/v1beta';
-    const url = `${baseURL}/models/${model}:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Gemini transcription error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('No transcription returned');
-    return text.trim();
+    return window.aiChat.transcribeAudio(audioBlob);
   }
 
   /**
@@ -685,52 +638,14 @@ class SystemAudioListener {
   }
 
   /**
-   * Transcribe an audio chunk using Gemini.
+   * Transcribe an audio chunk using the unified aiChat.transcribeAudio() which
+   * routes through Free Mode or Server/Paid Mode automatically.
    */
   async _transcribeChunk(audioBlob) {
-    const apiKey = window.aiChat?.apiKey;
-    if (!apiKey) {
-      throw new Error('Gemini API key not set');
+    if (!window.aiChat) {
+      throw new Error('AI Chat module not loaded');
     }
-
-    // Convert blob to base64
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64Audio = btoa(binary);
-    const mimeType = audioBlob.type || 'audio/webm';
-
-    const body = {
-      contents: [{
-        parts: [
-          { text: 'Transcribe this audio accurately. Return ONLY the spoken words. If no speech is detected, return an empty string. Do not add any commentary or explanation.' },
-          { inline_data: { mime_type: mimeType, data: base64Audio } }
-        ]
-      }],
-      generationConfig: { temperature: 0 }
-    };
-
-    const model = window.aiChat?.model || 'gemini-2.5-flash';
-    const baseURL = window.aiChat?.baseURL || 'https://generativelanguage.googleapis.com/v1beta';
-    const url = `${baseURL}/models/${model}:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Gemini transcription error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text ? text.trim() : '';
+    return window.aiChat.transcribeAudio(audioBlob);
   }
 
   /**
