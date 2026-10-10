@@ -7,7 +7,7 @@ on:
   workflow_dispatch:       # allows manual trigger from GitHub Actions UI
     inputs:
       version:
-        description: 'Version to release (e.g. 3.3.0)'
+        description: 'Version to release (e.g. 3.3.5)'
         required: false
         default: ''
 
@@ -23,6 +23,8 @@ jobs:
       # ── 1. Checkout ───────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
 
       # ── 2. Node.js ───────────────────────────────────────────────────
       - name: Setup Node.js
@@ -41,7 +43,9 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             VERSION="${{ github.ref_name }}"          # e.g. v3.3.0
-            VERSION="${VERSION#v}"                     # strip leading v → 3.3.0
+            VERSION="${VERSION#v}"                     # strip leading v -> 3.3.0
+          elif [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
           else
             VERSION=$(node -p "require('./package.json').version")
           fi
@@ -75,9 +79,9 @@ jobs:
           path: dist/HaimuAi-Portable-${{ steps.version.outputs.version }}.exe
           if-no-files-found: warn
 
-      # ── 8. Create GitHub Release (only on tag push) ───────────────────
+      # ── 8. Create GitHub Release (on tag push OR manual dispatch) ─────
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -88,29 +92,29 @@ jobs:
           body: |
             ## HaimuAi v${{ steps.version.outputs.version }}
 
-            ### 🆕 What's in this release
-            - ✅ **Chat & voice both fixed** — root cause was `window.aiChat` undefined due to a JS syntax error. Fully resolved with `_waitForAIChat()` guard and optional chaining on all call sites.
-            - 🎙️ **Mic + System audio** — voice captures both mic and speakers silently, no screen-share dialog.
-            - 🧹 **Simplified to 2 modes** — Free Mode (Gemini API keys) + Licensed Server. No external dependencies.
-            - 🛡️ **SEB/Respondus/LockDown Browser bypass** — zero user interaction, detects within 2s, auto-injects.
-            - 🎨 **Premium glassmorphism UI** with gradients and micro-animations
+            ### What's New in v${{ steps.version.outputs.version }}
+            - **Chat & voice both fixed** — root cause was `window.aiChat` undefined due to a JS syntax error. Fully resolved with `_waitForAIChat()` guard and optional chaining on all call sites.
+            - **Mic + System audio** — voice captures both mic and speakers silently, no screen-share dialog.
+            - **Simplified to 2 modes** — Free Mode (Gemini API keys) + Licensed Server. No external dependencies.
+            - **SEB/Respondus/LockDown Browser bypass** — zero user interaction, detects within 2s, auto-injects.
+            - **Premium glassmorphism UI** with gradients and micro-animations
 
-            ### ⬇️ Download
+            ### Download
             | File | Description |
             |------|-------------|
             | `HaimuAi-Setup-${{ steps.version.outputs.version }}.exe` | **Installer** (recommended) |
             | `HaimuAi-Portable-${{ steps.version.outputs.version }}.exe` | **Portable** — no install needed, just run |
 
-            ### 🔧 Two ways to use HaimuAi
+            ### Two ways to use HaimuAi
 
-            #### 🆓 Option 1 — Free Mode (Gemini API key, no license needed)
+            #### Option 1 — Free Mode (Gemini API key, no license needed)
             1. Download and run either version above
-            2. On the activation screen → press **✕** → click **⚙️** gear
-            3. Go to **API Keys** → paste your [free Gemini key](https://aistudio.google.com/apikey) → enable **Free Mode** → Save
+            2. On the activation screen — press **X** to close — click **gear icon** to open Settings
+            3. Go to **API Keys** — paste your [free Gemini key](https://aistudio.google.com/apikey) — enable **Free Mode** — Save
 
-            > 💡 Add 2–3 keys for automatic quota failover — HaimuAi rotates keys when one hits the daily limit.
+            > Add 2-3 keys for automatic quota failover — HaimuAi rotates keys when one hits the daily limit.
 
-            #### 🔑 Option 2 — Licensed (server-side AI, priority support)
+            #### Option 2 — Licensed (server-side AI, priority support)
             - Enter your license key on the activation screen
 
           files: |
