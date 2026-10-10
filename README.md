@@ -5,7 +5,7 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078d7.svg)
 ![Electron](https://img.shields.io/badge/Electron-30+-47848f.svg)
-![Version](https://img.shields.io/badge/version-3.3.5-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-3.3.4-brightgreen.svg)
 ![SEB](https://img.shields.io/badge/SEB%20bypass-native%20injection-blueviolet.svg)
 ![BitBlt](https://img.shields.io/badge/screenshot-BitBlt%20GDI-purple.svg)
 
@@ -13,25 +13,25 @@ A powerful AI-powered desktop assistant built with Electron. Features voice cont
 
 ## ⬇️ Download
 
-> ✅ **v3.3.5** — Simplified & stable: Free Mode (Gemini) + License Mode. ChatGPT removed. Both chat and voice now work reliably.
+> ✅ **v3.3.4** — Simplified & stable: Free Mode (Gemini) + License Mode. ChatGPT removed. Both chat and voice now work reliably.
 
-**Latest Release: v3.3.5** — *Released October 6, 2026*
+**Latest Release: v3.3.4** — *Released October 5, 2026*
 
 ### 🔑 Licensed Version (with HaimuAi Server)
 No API key needed — AI calls go through our server with your license key.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.5.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.5/HaimuAi-Setup-3.3.5.exe) | ~80 MB |
-| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.5.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.5/HaimuAi-Portable-3.3.5.exe) | ~73 MB |
+| 🖥️ **Installer** (recommended) | [HaimuAi-Setup-3.3.4.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.4/HaimuAi-Setup-3.3.4.exe) | ~80 MB |
+| 📦 **Portable** (no install needed) | [HaimuAi-Portable-3.3.4.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.4/HaimuAi-Portable-3.3.4.exe) | ~73 MB |
 
 ### 🆓 Free Mode — No Activation Key Required
 Use your own **free** Gemini API key — no license, no server, no payment.
 
 | Type | Link | Size |
 |------|------|------|
-| 🖥️ **Installer** | [HaimuAi-Setup-3.3.5.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.5/HaimuAi-Setup-3.3.5.exe) | ~80 MB |
-| 📦 **Portable** | [HaimuAi-Portable-3.3.5.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.5/HaimuAi-Portable-3.3.5.exe) | ~73 MB |
+| 🖥️ **Installer** | [HaimuAi-Setup-3.3.4.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.4/HaimuAi-Setup-3.3.4.exe) | ~80 MB |
+| 📦 **Portable** | [HaimuAi-Portable-3.3.4.exe](https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.4/HaimuAi-Portable-3.3.4.exe) | ~73 MB |
 
 **Free Mode Setup (3 steps):**
 1. Download & run **either** version above
