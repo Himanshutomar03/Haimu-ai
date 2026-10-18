@@ -1059,6 +1059,33 @@ catch { Write-Output "ERR:$($_.Exception.Message)"; exit 1 }
   return tmpPs1;
 }
 
+// ── capture-window.ps1 path resolver (ASAR-safe) ────────────────────────────
+// capture-window.ps1 uses PrintWindow for target windows AND BitBlt for full screen.
+// Auto-detects SEB/LockDownBrowser/Respondus without needing a PID.
+let _captureWindowPs1Path = null;
+
+function getCaptureWindowPs1Path() {
+  if (_captureWindowPs1Path && fs.existsSync(_captureWindowPs1Path)) return _captureWindowPs1Path;
+
+  // Dev build
+  const srcPath = path.join(__dirname, 'utils', 'capture-window.ps1');
+  if (fs.existsSync(srcPath)) { _captureWindowPs1Path = srcPath; return srcPath; }
+
+  // Packaged build
+  const tmpDir = path.join(os.tmpdir(), 'haimuai');
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+  const tmpPs1 = path.join(tmpDir, 'capture-window.ps1');
+
+  const resourcePs1 = path.join(process.resourcesPath || '', 'utils', 'capture-window.ps1');
+  if (fs.existsSync(resourcePs1)) {
+    fs.copyFileSync(resourcePs1, tmpPs1);
+    _captureWindowPs1Path = tmpPs1;
+    return tmpPs1;
+  }
+
+  return null; // not available — caller falls back to BitBlt
+}
+
 /**
  * PRIMARY: PowerShell BitBlt capture.
  * Runs powershell.exe as a completely separate OS process.
@@ -1129,15 +1156,80 @@ async function captureScreenDesktop() {
 }
 
 /**
- * Unified capture — BitBlt first (stealth), desktopCapturer as fallback.
+ * PRIMARY: capture-window.ps1
+ * Auto-detects SEB/LockDownBrowser/Respondus. Uses PrintWindow for the
+ * target window (captures even protected/occluded content). Falls back
+ * to full virtual-desktop BitBlt internally when no target is found.
+ * This is the method described in the overlay app design:
+ *   - PrintWindow for the TARGET window
+ *   - BitBlt for the virtual desktop
+ */
+function captureScreenSmart() {
+  return new Promise((resolve, reject) => {
+    const ps1Path = getCaptureWindowPs1Path();
+    if (!ps1Path) return reject(new Error('capture-window.ps1 not available'));
+
+    let stdout = '', stderr = '';
+    const ps = spawn('powershell.exe', [
+      '-NoProfile',
+      '-ExecutionPolicy', 'Bypass',
+      '-WindowStyle', 'Hidden',
+      '-NonInteractive',
+      '-File', ps1Path,
+      // No args = auto-detect SEB/lockdown targets
+    ], {
+      windowsHide: true,
+      detached: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    ps.stdout.on('data', d => { stdout += d.toString(); });
+    ps.stderr.on('data', d => { stderr += d.toString(); });
+
+    ps.on('close', () => {
+      // capture-window.ps1 outputs "OK:<base64>" (no prefix path like screenshot.ps1)
+      const out = stdout.trim();
+      if (out.startsWith('OK:')) {
+        const b64 = out.slice(3);
+        resolve('data:image/png;base64,' + b64);
+      } else {
+        const msg = out.replace(/^ERR:/, '') || stderr.trim() || 'capture-window.ps1 failed';
+        reject(new Error(msg));
+      }
+    });
+
+    ps.on('error', err => reject(new Error(`capture-window.ps1 spawn failed: ${err.message}`)));
+
+    // 12 second timeout — PrintWindow can be slower on protected windows
+    setTimeout(() => {
+      try { ps.kill(); } catch (_) {}
+      reject(new Error('capture-window.ps1 timed out after 12s'));
+    }, 12000);
+  });
+}
+
+/**
+ * Unified capture — SmartCapture (PrintWindow+BitBlt) → BitBlt → desktopCapturer
+ * This implements the design shown in the overlay app architecture:
+ *   BitBlt for virtual desktop, PrintWindow for the target window.
  */
 async function captureScreen() {
+  // 1) Smart capture: PrintWindow (target) or BitBlt (full desktop)
+  try {
+    return await captureScreenSmart();
+  } catch (smartErr) {
+    console.warn('[Screenshot] Smart capture failed, trying BitBlt-only:', smartErr.message);
+  }
+
+  // 2) Pure BitBlt fallback
   try {
     return await captureScreenBitBlt();
   } catch (psErr) {
     console.warn('[Screenshot] BitBlt failed, falling back to desktopCapturer:', psErr.message);
-    return await captureScreenDesktop();
   }
+
+  // 3) Last resort: Electron desktopCapturer
+  return await captureScreenDesktop();
 }
 
 /**
@@ -1204,9 +1296,13 @@ ipcMain.handle('save-settings', (event, settings) => {
 
 ipcMain.handle('take-screenshot', async () => {
   try {
+    // Always use the smart capture:
+    // - If a lockdown browser (SEB, Respondus, etc.) is detected → PrintWindow
+    // - Otherwise → full virtual-desktop BitBlt
+    // - Final fallback → Electron desktopCapturer
     return await captureScreen();
   } catch (err) {
-    console.error('[IPC Screenshot] Capture failed:', err.message);
+    console.error('[IPC Screenshot] All capture methods failed:', err.message);
   }
   return null;
 });
