@@ -1,96 +1,44 @@
 const express = require('express');
 const fetch = require('node-fetch');
-const jwt = require('jsonwebtoken');
 const { requireAdmin } = require('../middleware/auth');
-const supabase = require('../db/supabase');
 
 const router = express.Router();
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// ─── Per-license key cache ────────────────────────────────────────────────────
-// licenseKey -> { keys: [string], idx: number, active: bool, cachedAt: number }
-const licenseCache = new Map();
-const CACHE_TTL_MS = 45 * 1000; // 45 seconds — revoke propagates within this time
+// ─── Server-level Gemini key pool (from GEMINI_API_KEYS env var) ──────────────
+// Comma-separated list: KEY1,KEY2,KEY3
+// Keys rotate round-robin. On quota error they cool down for 1 hour.
+const _rawKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+const serverKeys = _rawKeys.map(k => ({ key: k, cooledUntil: 0 }));
+let _keyIdx = 0;
 
-async function getLicenseData(licenseKey) {
-  const cached = licenseCache.get(licenseKey);
-  if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
-    return cached;
+function getActiveKey() {
+  const now = Date.now();
+  // Try up to N keys to find one not in cooldown
+  for (let i = 0; i < serverKeys.length; i++) {
+    const entry = serverKeys[(_keyIdx + i) % serverKeys.length];
+    if (entry.cooledUntil <= now) {
+      _keyIdx = (_keyIdx + i + 1) % serverKeys.length;
+      return entry.key;
+    }
   }
-
-  // Fetch license status + all its active Gemini API keys in parallel
-  const [licenseRes, keysRes] = await Promise.all([
-    supabase.from('licenses').select('active, expires_at').eq('key', licenseKey).single(),
-    supabase.from('license_api_keys').select('api_key').eq('license_key', licenseKey).eq('active', true),
-  ]);
-
-  if (licenseRes.error || !licenseRes.data) return null;
-
-  const info = {
-    active: licenseRes.data.active,
-    expires_at: licenseRes.data.expires_at,
-    keys: (keysRes.data || []).map(k => k.api_key),
-    idx: (cached?.idx || 0) % Math.max((keysRes.data || []).length, 1),
-    cachedAt: Date.now(),
-  };
-
-  licenseCache.set(licenseKey, info);
-  return info;
+  // All keys in cooldown — use first one anyway (best effort)
+  _keyIdx = (_keyIdx + 1) % serverKeys.length;
+  return serverKeys[(_keyIdx - 1 + serverKeys.length) % serverKeys.length]?.key || null;
 }
 
-function invalidateLicenseCache(licenseKey) {
-  licenseCache.delete(licenseKey);
+function cooldownKey(key) {
+  const entry = serverKeys.find(e => e.key === key);
+  if (entry) entry.cooledUntil = Date.now() + 60 * 60 * 1000; // 1 hour cooldown
 }
 
-// Pick next key from the pool (round-robin)
-function pickKey(info) {
-  if (!info.keys || info.keys.length === 0) return null;
-  const key = info.keys[info.idx % info.keys.length];
-  info.idx = (info.idx + 1) % info.keys.length;
-  return key;
-}
-
-// ─── Middleware: validate token + check live license + get keys ───────────────
-async function requireActiveLicense(req, res, next) {
-  const token = req.headers['x-license-token'];
-  if (!token) return res.status(401).json({ error: 'No license token', revoked: true });
-
-  let payload;
-  try { payload = jwt.verify(token, process.env.JWT_SECRET); }
-  catch { return res.status(401).json({ error: 'Token expired or invalid', revoked: true }); }
-
-  const info = await getLicenseData(payload.licenseKey);
-
-  if (!info) return res.status(401).json({ error: 'License not found', revoked: true });
-
-  if (!info.active) {
-    invalidateLicenseCache(payload.licenseKey);
-    return res.status(401).json({ error: 'License revoked', revoked: true });
-  }
-
-  if (info.expires_at && new Date(info.expires_at) < new Date()) {
-    return res.status(401).json({ error: 'License expired', revoked: true });
-  }
-
-  if (info.keys.length === 0) {
-    return res.status(402).json({
-      error: 'No Gemini API keys assigned to your license. Contact the administrator.',
-      revoked: false,
-    });
-  }
-
-  req.licenseKey = payload.licenseKey;
-  req.licenseInfo = info;
-  next();
-}
-
-// ─── Helper: call Gemini with key rotation on 429/quota errors ────────────────
-async function geminiWithFallback(endpoint, body, licenseInfo) {
+// ─── Helper: call Gemini with key rotation on quota errors ────────────────────
+async function geminiWithFallback(endpoint, body) {
   const tried = new Set();
-  const allKeys = [...licenseInfo.keys];
 
-  for (let i = 0; i < allKeys.length; i++) {
-    const key = pickKey(licenseInfo);
+  for (let i = 0; i < serverKeys.length; i++) {
+    const key = getActiveKey();
+    if (!key) break;
     if (tried.has(key)) continue;
     tried.add(key);
 
@@ -101,28 +49,24 @@ async function geminiWithFallback(endpoint, body, licenseInfo) {
       body: JSON.stringify(body),
     });
 
-    // If quota/rate limit — try next key
-    if (response.status === 429 || (response.status === 403 && i < allKeys.length - 1)) {
+    // Quota/rate-limit → cool down this key and try next
+    if (response.status === 429 || (response.status === 403 && i < serverKeys.length - 1)) {
+      console.warn(`[KeyPool] Key quota hit (${response.status}). Cooling down and rotating.`);
+      cooldownKey(key);
       continue;
     }
     return response;
   }
 
-  // All keys failed
-  return null;
+  return null; // all keys failed
 }
 
 // ─── Helper: parse client messages array into { message, history } ────────────
-// Client sends: { messages: [{role, content}, ...], systemPrompt, model }
-// The last item is the current user message; everything before is history.
 function parseMessages(body) {
   const msgs = body.messages || [];
-
-  // Fallback: client may also send legacy { message, history } format
   if (msgs.length === 0) {
     return { message: body.message || '', history: body.history || [] };
   }
-
   const last = msgs[msgs.length - 1];
   const message = last?.content || '';
   const history = msgs.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
@@ -130,7 +74,7 @@ function parseMessages(body) {
 }
 
 // ─── POST /api/ai/chat ────────────────────────────────────────────────────────
-router.post('/chat', requireActiveLicense, async (req, res) => {
+router.post('/chat', async (req, res) => {
   const { message, history } = parseMessages(req.body);
   const { command = 'general', language = 'javascript', systemPrompt } = req.body;
 
@@ -149,8 +93,7 @@ router.post('/chat', requireActiveLicense, async (req, res) => {
   };
 
   try {
-    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', geminiBody, req.licenseInfo);
-
+    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', geminiBody);
     if (!geminiRes) {
       return res.status(503).json({ error: 'All API keys are temporarily exhausted. Try again in a moment.' });
     }
@@ -158,10 +101,8 @@ router.post('/chat', requireActiveLicense, async (req, res) => {
       const errText = await geminiRes.text();
       return res.status(geminiRes.status).json({ error: `Gemini error: ${errText}` });
     }
-
     const data = await geminiRes.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    supabase.rpc('increment_usage', { license_key: req.licenseKey }).catch(() => {});
     return res.json({ text });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -169,20 +110,14 @@ router.post('/chat', requireActiveLicense, async (req, res) => {
 });
 
 // ─── POST /api/ai/vision ──────────────────────────────────────────────────────
-// Accepts new client format: { imageBase64, prompt, messages, systemPrompt, model }
-// Also supports legacy format: { images: [...], question, language }
-router.post('/vision', requireActiveLicense, async (req, res) => {
+router.post('/vision', async (req, res) => {
   const { language = 'javascript', systemPrompt } = req.body;
 
-  // Resolve image(s) and question from either client format
   let images, question;
-
   if (req.body.imageBase64) {
-    // New format from ai-chat.js: single base64 string + prompt text
     images = [req.body.imageBase64];
     question = req.body.prompt || 'What do you see?';
   } else if (req.body.images && Array.isArray(req.body.images)) {
-    // Legacy format
     images = req.body.images;
     question = req.body.question || 'What do you see?';
   } else {
@@ -197,7 +132,6 @@ router.post('/vision', requireActiveLicense, async (req, res) => {
     inlineData: { mimeType: 'image/jpeg', data: img.replace(/^data:image\/\w+;base64,/, '') },
   }));
 
-  // Include recent conversation context if provided
   const historyContents = (req.body.messages || []).slice(-6).map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.content }],
@@ -213,7 +147,7 @@ router.post('/vision', requireActiveLicense, async (req, res) => {
   };
 
   try {
-    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', geminiBody, req.licenseInfo);
+    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', geminiBody);
     if (!geminiRes) return res.status(503).json({ error: 'All API keys exhausted.' });
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
@@ -221,7 +155,6 @@ router.post('/vision', requireActiveLicense, async (req, res) => {
     }
     const data = await geminiRes.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    supabase.rpc('increment_usage', { license_key: req.licenseKey }).catch(() => {});
     return res.json({ text });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -229,7 +162,7 @@ router.post('/vision', requireActiveLicense, async (req, res) => {
 });
 
 // ─── POST /api/ai/stream ──────────────────────────────────────────────────────
-router.post('/stream', requireActiveLicense, async (req, res) => {
+router.post('/stream', async (req, res) => {
   const { message, history } = parseMessages(req.body);
   const { command = 'general', language = 'javascript', systemPrompt } = req.body;
 
@@ -251,7 +184,7 @@ router.post('/stream', requireActiveLicense, async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  const key = pickKey(req.licenseInfo);
+  const key = getActiveKey();
   if (!key) {
     res.write(`data: ${JSON.stringify({ error: 'No API keys available' })}\n\n`);
     return res.end();
@@ -270,10 +203,7 @@ router.post('/stream', requireActiveLicense, async (req, res) => {
       return res.end();
     }
     geminiRes.body.on('data', chunk => { try { res.write(chunk); } catch (e) {} });
-    geminiRes.body.on('end', () => {
-      supabase.rpc('increment_usage', { license_key: req.licenseKey }).catch(() => {});
-      res.end();
-    });
+    geminiRes.body.on('end', () => res.end());
     geminiRes.body.on('error', () => res.end());
     req.on('close', () => geminiRes.body.destroy());
   } catch (err) {
@@ -283,8 +213,7 @@ router.post('/stream', requireActiveLicense, async (req, res) => {
 });
 
 // ─── POST /api/ai/transcribe ─────────────────────────────────────────────────
-// Accepts { audioBase64, mimeType } and returns { text } with the transcription
-router.post('/transcribe', requireActiveLicense, async (req, res) => {
+router.post('/transcribe', async (req, res) => {
   const { audioBase64, mimeType = 'audio/webm' } = req.body;
 
   if (!audioBase64) {
@@ -302,8 +231,7 @@ router.post('/transcribe', requireActiveLicense, async (req, res) => {
   };
 
   try {
-    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', body, req.licenseInfo);
-
+    const geminiRes = await geminiWithFallback('gemini-2.5-flash:generateContent', body);
     if (!geminiRes) {
       return res.status(503).json({ error: 'All API keys are temporarily exhausted. Try again in a moment.' });
     }
@@ -311,43 +239,26 @@ router.post('/transcribe', requireActiveLicense, async (req, res) => {
       const errText = await geminiRes.text();
       return res.status(geminiRes.status).json({ error: `Gemini transcription error: ${errText}` });
     }
-
     const data = await geminiRes.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    supabase.rpc('increment_usage', { license_key: req.licenseKey }).catch(() => {});
     return res.json({ text: text.trim() });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// ─── Admin: License key pool status ──────────────────────────────────────────
-router.get('/keys/status', requireAdmin, async (req, res) => {
-  const { data: licenses } = await supabase
-    .from('licenses')
-    .select('key, user_email, active')
-    .order('created_at', { ascending: false });
-
-  const { data: apiKeys } = await supabase
-    .from('license_api_keys')
-    .select('license_key, id, active');
-
-  const keyCounts = {};
-  (apiKeys || []).forEach(k => {
-    if (!keyCounts[k.license_key]) keyCounts[k.license_key] = { total: 0, active: 0 };
-    keyCounts[k.license_key].total++;
-    if (k.active) keyCounts[k.license_key].active++;
+// ─── GET /api/ai/keys/status (Admin only) ────────────────────────────────────
+router.get('/keys/status', requireAdmin, (req, res) => {
+  const now = Date.now();
+  res.json({
+    totalKeys: serverKeys.length,
+    keys: serverKeys.map((e, i) => ({
+      index: i,
+      keyPreview: e.key.slice(0, 8) + '...',
+      status: e.cooledUntil > now ? 'cooldown' : 'active',
+      cooledUntilMs: e.cooledUntil > now ? e.cooledUntil : null,
+    })),
   });
-
-  const keys = (licenses || []).map(l => ({
-    licenseKey: l.key,
-    userEmail: l.user_email,
-    active: l.active,
-    apiKeyCount: keyCounts[l.key]?.active || 0,
-    apiKeyTotal: keyCounts[l.key]?.total || 0,
-  }));
-
-  res.json({ totalLicenses: keys.length, keys });
 });
 
 // ─── System prompt builder ────────────────────────────────────────────────────

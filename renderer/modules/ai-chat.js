@@ -117,7 +117,7 @@ class AIChat {
   _authHeaders() {
     return {
       'Content-Type': 'application/json',
-      'x-license-token': this.licenseToken,
+      // No license token required — server is open
     };
   }
 
@@ -409,14 +409,7 @@ CRITICAL RULES:
       }
     }
 
-    // 2) Server / Licensed Mode
-    if (!this.licenseToken) {
-      throw new Error(
-        'No AI provider configured.\n' +
-        'Go to Settings (⚙️) › API Keys › paste your free Gemini key › enable Free Mode › Save.'
-      );
-    }
-
+    // Server Mode — no license required
     this.isStreaming = true;
     this.abortController = new AbortController();
     const systemPrompt = this.getSystemPrompt(command, language);
@@ -732,9 +725,6 @@ CRITICAL RULES:
   // Analyze one or more screenshots at once
   async analyzeScreenshots(imageDataArray, question = 'What do you see in these screenshots? Describe and help the user.', language = 'javascript', syncWithChat = true) {
     await this._refreshToken();
-    if (!this.licenseToken) {
-      throw new Error('License token missing. Please restart HaimuAi.');
-    }
     if (!imageDataArray || imageDataArray.length === 0) {
       throw new Error('No screenshots provided.');
     }

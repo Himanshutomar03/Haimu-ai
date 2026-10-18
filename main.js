@@ -1607,49 +1607,18 @@ function createLicenseWindow() {
   licenseWindow.center();
 }
 
-// App lifecycle
+// App lifecycle — license check removed, app boots directly
 app.whenReady().then(async () => {
   // ── Grant screen capture permission automatically ──────────────────────────
-  // Without this, Chromium blocks desktopCapturer.getSources() in packaged builds.
   const { session } = require('electron');
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    if (permission === 'media' || permission === 'display-capture') {
-      return callback(true);
-    }
     callback(true); // grant all permissions
   });
-  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    return true; // always allow
-  });
+  session.defaultSession.setPermissionCheckHandler(() => true);
 
-  // ── Free Mode check first: if user has their own API keys, boot directly ──
-  const freeModeEnabled = store.get('freeModeEnabled', false);
-  const freeKeys = store.get('freeApiKeys', []);
-  if (freeModeEnabled && freeKeys.length > 0) {
-    console.log('[FreeMode] User-provided API keys found. Booting in Free Mode.');
-    FREE_MODE = true;
-    bootApp();
-    return;
-  }
-
-  // ── License server mode (default) ──
-  const storedKey = store.get('licenseKey');
-  if (storedKey) {
-    console.log('[License] Validating stored key...');
-    const result = await validateLicense(storedKey);
-    if (result.valid) {
-      store.set('licenseToken', result.token);
-      console.log('[License] Valid. Welcome back!');
-      bootApp();
-    } else {
-      console.log('[License] Invalid:', result.error);
-      store.set('licenseToken', '');
-      createLicenseWindow();
-    }
-  } else {
-    console.log('[License] No key stored. Showing activation screen.');
-    createLicenseWindow();
-  }
+  // ── Boot directly — no license required ──────────────────────────────────
+  console.log('[Boot] Starting HaimuAi — no license required.');
+  bootApp();
 });
 
 // IPC: License activation (from license.html)
@@ -1671,7 +1640,8 @@ ipcMain.handle('activate-license', async (event, key) => {
 
 // IPC: Get server URL (for renderer to make AI calls)
 ipcMain.handle('get-server-url', () => SERVER_URL);
-ipcMain.handle('get-license-token', () => store.get('licenseToken'));
+// License removed — return a bypass marker so renderer skips its own checks
+ipcMain.handle('get-license-token', () => 'NO_LICENSE_REQUIRED');
 
 // IPC: Save license token (after heartbeat refresh)
 ipcMain.handle('save-license-token', (event, token) => {
@@ -1754,8 +1724,7 @@ function bootApp() {
     console.log('[AlwaysActive] Restored from saved setting');
   }
 
-  // Start heartbeat AFTER app boots
-  startHeartbeat();
+  // Heartbeat removed — no license system
 }
 
 
