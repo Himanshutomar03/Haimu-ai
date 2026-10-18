@@ -1209,23 +1209,24 @@ function captureScreenSmart() {
 }
 
 /**
- * Unified capture — SmartCapture (PrintWindow+BitBlt) → BitBlt → desktopCapturer
- * This implements the design shown in the overlay app architecture:
- *   BitBlt for virtual desktop, PrintWindow for the target window.
+ * Unified capture:
+ *   1) BitBlt (PRIMARY)       — Win32 GDI direct capture, all monitors, zero events
+ *   2) PrintWindow (FALLBACK) — capture-window.ps1, auto-detects target windows
+ *   3) desktopCapturer        — Electron API, last resort
  */
 async function captureScreen() {
-  // 1) Smart capture: PrintWindow (target) or BitBlt (full desktop)
+  // 1) BitBlt — fast, stealth, works on all screens
+  try {
+    return await captureScreenBitBlt();
+  } catch (bitBltErr) {
+    console.warn('[Screenshot] BitBlt failed, trying PrintWindow:', bitBltErr.message);
+  }
+
+  // 2) PrintWindow / capture-window.ps1 — auto-detects target window or BitBlt fallback
   try {
     return await captureScreenSmart();
   } catch (smartErr) {
-    console.warn('[Screenshot] Smart capture failed, trying BitBlt-only:', smartErr.message);
-  }
-
-  // 2) Pure BitBlt fallback
-  try {
-    return await captureScreenBitBlt();
-  } catch (psErr) {
-    console.warn('[Screenshot] BitBlt failed, falling back to desktopCapturer:', psErr.message);
+    console.warn('[Screenshot] PrintWindow failed, falling back to desktopCapturer:', smartErr.message);
   }
 
   // 3) Last resort: Electron desktopCapturer
