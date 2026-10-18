@@ -1,4 +1,26 @@
+// ─── Crash diagnostics (show real error in Render logs) ───────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled Rejection:', reason);
+  process.exit(1);
+});
+
 require('dotenv').config();
+
+// ─── Validate required env vars on startup ─────────────────────────────────
+const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'JWT_SECRET'];
+const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missing.length > 0) {
+  console.error('[FATAL] Missing required environment variables:', missing.join(', '));
+  console.error('[FATAL] Set these in Render Dashboard → Environment tab');
+  process.exit(1);
+}
+console.log('[Startup] Environment OK — all required vars present');
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -7,6 +29,7 @@ const licenseRouter = require('./routes/license');
 const aiRouter = require('./routes/ai');
 
 const app = express();
+// Render.com (and most PaaS) injects PORT automatically. Always use it.
 const PORT = process.env.PORT || 3000;
 
 // ─── Middleware ────────────────────────────────────────────────────────────
@@ -209,7 +232,8 @@ async function startServer() {
     console.warn('[Migration] Could not check schema:', e.message);
   }
 
-  app.listen(PORT, () => {
+  // Bind to 0.0.0.0 — required on Render, Fly.io, and most PaaS platforms
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`[HaimuAI Server] Running on port ${PORT}`);
     console.log(`[HaimuAI Server] Admin dashboard: http://localhost:${PORT}/admin`);
     console.log(`[HaimuAI Server] Environment: ${process.env.NODE_ENV || 'development'}`);
