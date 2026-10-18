@@ -106,7 +106,10 @@ process.on('uncaughtException', (err) => {
 
 // ─── Server URL ─────────────────────────────────────────────────────────────
 // ALL AI calls go through this server. The real Gemini key lives there.
-const SERVER_URL = 'https://haimuai-server-production.up.railway.app';
+// 🔄 MIGRATED: Railway → Render.com (Railway free tier ended)
+// After deploying haimuai-server to Render, replace the URL below with your
+// Render service URL (format: https://YOUR-SERVICE-NAME.onrender.com)
+const SERVER_URL = 'https://haimuai-server.onrender.com';
 
 // ─── Free Mode ───────────────────────────────────────────────────────────────
 // When users supply their own Gemini API key(s) they bypass the license server.

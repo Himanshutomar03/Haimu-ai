@@ -1,0 +1,27 @@
+# Render.com deployment config — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: haimuai-server
+    runtime: node
+    region: oregon          # Free tier region (oregon / frankfurt)
+    plan: free              # Free 512 MB RAM instance (spins down after 15 min idle)
+    rootDir: .              # Run from haimuai-server/ root (deploy this folder only)
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /health
+
+    # Environment variables — set these in Render dashboard or here (non-secret only)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"          # Render assigns its own port; this is the fallback default
+
+      # ── SECRET vars — set these in Render Dashboard > Environment ──────────
+      # Do NOT hardcode secrets here. Add them manually in the Render UI.
+      #
+      # SUPABASE_URL          → your Supabase project URL
+      # SUPABASE_SERVICE_KEY  → your Supabase service role key
+      # GEMINI_API_KEYS       → comma-separated Gemini API keys
+      # JWT_SECRET            → 64-char random hex string
+      # ADMIN_PASSWORD        → admin dashboard password
