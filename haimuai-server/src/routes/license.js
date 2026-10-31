@@ -8,7 +8,7 @@ const router = express.Router();
 
 // ─── POST /api/license/validate ─────────────────────────────────────────────
 router.post('/validate', async (req, res) => {
-  const { key, hwid } = req.body;
+  const { key } = req.body;
   if (!key || typeof key !== 'string') {
     return res.status(400).json({ valid: false, error: 'License key is required' });
   }
@@ -30,15 +30,9 @@ router.post('/validate', async (req, res) => {
   if (license.expires_at && new Date(license.expires_at) < new Date()) {
     return res.status(403).json({ valid: false, error: 'License has expired' });
   }
-  if (license.hwid && hwid && license.hwid !== hwid) {
-    return res.status(403).json({ valid: false, error: 'License is locked to a different machine' });
-  }
 
-  if (!license.hwid && hwid) {
-    await supabase.from('licenses').update({ hwid, last_seen: new Date().toISOString() }).eq('key', normalizedKey);
-  } else {
-    await supabase.from('licenses').update({ last_seen: new Date().toISOString() }).eq('key', normalizedKey);
-  }
+  // No HWID locking — license works on any machine
+  await supabase.from('licenses').update({ last_seen: new Date().toISOString() }).eq('key', normalizedKey);
 
   const token = jwt.sign(
     { licenseKey: normalizedKey, plan: license.plan, userEmail: license.user_email },
@@ -146,14 +140,7 @@ router.get('/list', requireAdmin, async (req, res) => {
   return res.json({ licenses: result });
 });
 
-// ─── POST /api/license/reset-hwid ───────────────────────────────────────────
-router.post('/reset-hwid', requireAdmin, async (req, res) => {
-  const { key } = req.body;
-  if (!key) return res.status(400).json({ error: 'Key required' });
-  const { error } = await supabase.from('licenses').update({ hwid: null }).eq('key', key.trim().toUpperCase());
-  if (error) return res.status(500).json({ error: error.message });
-  return res.json({ success: true, message: `HWID reset for ${key}.` });
-});
+// (HWID reset removed — no per-machine locking)
 
 // ════════════════════════════════════════════════════════════════════════════
 // PER-LICENSE API KEY MANAGEMENT

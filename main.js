@@ -1482,40 +1482,17 @@ ipcMain.handle('get-always-active', () => alwaysActive);
 let heartbeatInterval = null;
 
 /**
- * Get a hardware fingerprint for HWID locking.
- * Uses CPU model + total memory as a stable identifier.
- */
-async function getHWID() {
-  try {
-    const os = require('os');
-    const cpus = os.cpus();
-    const cpuModel = cpus.length > 0 ? cpus[0].model : 'unknown';
-    const totalMem = os.totalmem();
-    const raw = `${cpuModel}-${totalMem}-${os.platform()}`;
-    // Simple hash
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash).toString(36);
-  } catch (e) {
-    return 'unknown';
-  }
-}
-
-/**
  * Validate the stored license key with the server.
  * Returns { valid: true, token } or { valid: false, error }
+ * No HWID locking — license works on any machine.
  */
 async function validateLicense(key) {
   try {
-    const hwid = await getHWID();
     const fetch = require('node-fetch');
     const res = await fetch(`${SERVER_URL}/api/license/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, hwid }),
+      body: JSON.stringify({ key }),
       timeout: 15000,
     });
     return await res.json();
