@@ -46,7 +46,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISO
 // ─── Download Route ────────────────────────────────────────────────────────
 // Single permanent link for users. Update DOWNLOAD_URL to change the version.
 const DOWNLOAD_URL = process.env.DOWNLOAD_URL ||
-  'https://github.com/Himanshutomar03/Haimu-ai/releases/latest/download/HaimuAi-Portable.exe';
+  'https://github.com/Himanshutomar03/Haimu-ai/releases/download/v3.3.5/HaimuAi-Portable-3.3.5.exe';
 
 // /download — direct redirect to the .exe (the ONE link you share with users)
 app.get('/download', (req, res) => {
