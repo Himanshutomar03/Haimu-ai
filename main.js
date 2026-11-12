@@ -309,6 +309,19 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  // ── Block Alt+L / Alt+V / Alt+A from reaching the OS system-menu ──────────
+  // On Windows, Alt+key combos that Electron doesn't consume are forwarded as
+  // WM_SYSKEYDOWN to the Win32 message loop. For some Alt+key combinations
+  // (especially Alt+L on some keyboard layouts) this triggers SC_CLOSE or other
+  // system-menu commands, causing the window to close/hide unexpectedly.
+  // Intercepting via before-input-event ensures we swallow the event before
+  // Chromium's Win32 message pump can pass it to the shell.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.alt && ['l', 'v', 'a'].includes(input.key.toLowerCase())) {
+      event.preventDefault(); // stop Chromium from forwarding WM_SYSKEYDOWN
+    }
+  });
+
   mainWindow.on('resize', () => {
     const bounds = mainWindow.getBounds();
     store.set('windowBounds', { width: bounds.width, height: bounds.height });

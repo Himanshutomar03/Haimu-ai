@@ -1930,15 +1930,14 @@ class HaimuAiApp {
         }
       }
 
-      // Alt+L - cycle languages
-      if (e.altKey && e.key === 'l') {
+      // Alt+L - toggle system audio listen (do NOT cycle languages here;
+      // language cycling conflicts with the global Alt+L → LISTEN shortcut)
+      if (e.altKey && (e.key === 'l' || e.key === 'L')) {
+        // Prevent Alt from activating the window system-menu (which can close the app)
         e.preventDefault();
-        const select = document.getElementById('languageSelect');
-        if (select) {
-          const currentIdx = select.selectedIndex;
-          select.selectedIndex = (currentIdx + 1) % select.options.length;
-          this.showToast(`Language: ${select.options[select.selectedIndex].text}`, 'info');
-        }
+        e.stopPropagation();
+        // The actual listen toggle is driven via IPC (onToggleListen) from the keyhook / globalShortcut.
+        // We only need to block the default Alt-menu behaviour here.
       }
     });
   }
@@ -2313,5 +2312,25 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
   app = new HaimuAiApp();
   window.app = app;
+
+  // ── Block Alt-key system-menu activation ──────────────────────────────────
+  // On Windows, pressing Alt alone (or Alt+key) activates the system/app menu.
+  // For a frameless Electron window this can cause Chromium to pass WM_SYSCOMMAND
+  // messages (e.g. SC_CLOSE) to the shell, which closes the app.
+  // We intercept ALL Alt+key combos we own (Alt+L, Alt+V, Alt+A) and call
+  // preventDefault() so the OS never sees the system-menu activation.
+  window.addEventListener('keydown', (e) => {
+    if (e.altKey && ['l', 'L', 'v', 'V', 'a', 'A'].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase — runs before any other handler
+
+  // Also block bare Alt keyup — prevents Chromium forwarding WM_SYSKEYUP
+  // to the shell (which activates the Windows system menu even without a chord)
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Alt') {
+      e.preventDefault();
+    }
+  }, true);
 });
 
